@@ -38,7 +38,7 @@ QuickGuide transforms large, static PDFs into **searchable knowledge bases** tha
 **Acceptance Criteria:**
 - A prompt box is always visible on the main screen.
 - Results appear within 3 seconds for a 1,000-page document.
-- Each result shows: page number, text snippet, and a relevance badge.
+- Each result shows: page number, FULL scrollable text snippet, and a relevance badge.
 - If no document is selected, a friendly message tells the user to select one first.
 
 ### US-03 — Navigate to the Answer
@@ -81,6 +81,15 @@ QuickGuide transforms large, static PDFs into **searchable knowledge bases** tha
 - List all uploaded documents with name, page count, and upload date.
 - Select any document to make it the active search target.
 - Delete a document to reclaim storage.
+
+### US-08 — Custom Mouse-Drag Highlighting & Dashboard
+> *As a user, I want to drag my mouse to highlight any text I find interesting completely independently from my searches, and keep track of them in a single view.*
+
+**Acceptance Criteria:**
+- User can highlight text by selecting it with their mouse (defaults to Light Blue).
+- A separate "My Highlights" tab in the UI sidebar displays a list of all manually saved highlights.
+- Clicking on a saved highlight instantly navigates the PDF to that exact page.
+- User can delete custom highlights from the dashboard.
 
 ## 4 Feature Priority (MoSCoW)
 

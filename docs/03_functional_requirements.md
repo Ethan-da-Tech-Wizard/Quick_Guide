@@ -93,7 +93,7 @@
 | Field | Detail |
 |---|---|
 | **Description** | Results shown in a scrollable panel alongside the PDF viewer. |
-| **Per result** | Page number, text snippet (≤ 200 chars), relevance score badge, clickable link. |
+| **Per result** | Page number, full scrollable text snippet bounded only by max-height, relevance score badge. |
 
 ---
 
@@ -134,12 +134,25 @@
 | **Description** | User-applied highlights are saved and restored when the document is reopened. |
 | **Storage** | SQLite records keyed by `document_id + page_number + text_content + color`. |
 
+### FR-NAV-06 — Interactive Text Selection Highlighting
+| Field | Detail |
+|---|---|
+| **Description** | Users can highlight freeform text simply by dragging their mouse cursor over sentences on the PDF. |
+| **Input** | JS native DOM text selection (`mouseup` event). |
+| **Output** | Sends the highlighted text to the backend to be saved as an independent highlight, rendered visually in Light Blue. |
+
+### FR-NAV-07 — "My Highlights" Dashboard Tab
+| Field | Detail |
+|---|---|
+| **Description** | A Tabbed interface in the sidebar to switch between "Search" and "My Highlights". |
+| **Content** | Lists all custom highlights saved via mouse drag, displaying the page number, the highlighted content, and an option to delete. Clicking the card jumps the PDF to that page. |
+
 ---
 
 ## 5 UI / UX Requirements
 
 ### FR-UI-01 — Responsive Layout
-- **Desktop (≥ 1024px):** Side-by-side layout — search/results panel (left, ~35%), PDF viewer (right, ~65%).
+- **Desktop (≥ 1024px):** Side-by-side layout — Tabbed sidebar for search/highlights (left, ~35%), PDF viewer (right, ~65%).
 - **Mobile (< 1024px):** Stacked layout — search bar and results on top, PDF viewer below. Collapsible search panel.
 
 ### FR-UI-02 — Cozy Visual Design

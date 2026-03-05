@@ -12,12 +12,14 @@
 - Text extraction (PdfPig, C#) and vector embedding (sentence-transformers, Python)
 - Semantic natural-language search via prompt box
 - Search result → one-click page navigation in PDF.js viewer
-- Auto-highlight matching phrases (yellow default)
+- Auto-highlight matching phrases (yellow exact-word match)
 - **Multi-match navigation** — jump between all highlighted sections (▶/◀)
 - Customizable highlight color (color picker + presets)
+- **Interactive Mouse-Drag Custom Highlighting** (Light Blue)
+- **My Highlights Dashboard Tab**
 - Persistent highlights saved across sessions
 - Multi-document library (upload, select, delete)
-- Responsive layout (desktop side-by-side, mobile stacked)
+- Responsive layout with scrollable full-text search result snippets and tabs
 - Cozy, layman-friendly UI design
 - QG logo desktop launcher (`.bat` / `.sh`)
 - Cross-platform via web browser (Windows, macOS, Linux, mobile)
@@ -54,7 +56,8 @@ gantt
 
     section Polish
     M4 - Highlights & Navigation    :m4, after m3, 3d
-    M5 - Launch & Packaging         :m5, after m4, 2d
+    M4.5 - UI/UX Enhancements       :m45, after m4, 2d
+    M5 - Launch & Packaging         :m5, after m45, 2d
 
     section Release
     M6 - GitHub Push & RC           :m6, after m5, 1d
@@ -78,6 +81,10 @@ All 8 planning documents finalized. Repository scaffolded with folder structure.
 ### M4 — Highlights & Multi-Match Navigation
 **Deliverables:** Click-to-navigate, auto-highlight, multi-match jumping (▶/◀), color picker, persistent highlights.
 **DoD:** Full flow: query → results → click → PDF navigates → phrase highlighted → jump between matches.
+
+### M4.5 — Phase 4 UI/UX Enhancements
+**Deliverables:** Exact-word search highlights, mouse-drag custom highlighting, My Highlights tab, fully scrollable snippet results.
+**DoD:** User can create custom Light Blue highlights, view them in a dedicated tab, scroll long text results without cutoff, and see perfectly accurate yellow matching boxes.
 
 ### M5 — Launch & Packaging
 **Deliverables:** `qg.bat` / `qg.sh` launcher scripts, QG logo, README/quickstart guide, `.gitignore`.
