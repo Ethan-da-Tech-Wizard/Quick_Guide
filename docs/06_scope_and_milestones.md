@@ -9,7 +9,7 @@
 
 ### In Scope (v1.0)
 - Local PDF selection from file system, parsing, and managed storage
-- Text extraction (PdfPig, C#) and vector embedding (sentence-transformers, Python)
+- Text extraction (PyMuPDF, Python) and vector embedding (sentence-transformers, Python)
 - Semantic natural-language search via prompt box
 - Search result → one-click page navigation in PDF.js viewer
 - Auto-highlight matching phrases (yellow exact-word match)
@@ -47,9 +47,9 @@ gantt
     section Planning
     M0 - Planning Docs & Scaffold   :done, m0, 2026-03-05, 1d
 
-    section C# Backend
+    section Python Backend
     M1 - Core Backend & PDF Parsing :m1, after m0, 3d
-    M2 - Python Worker Integration  :m2, after m1, 2d
+    M2 - Embeddings & Vector Search :m2, after m1, 2d
 
     section Frontend
     M3 - Web UI & PDF Viewer        :m3, after m2, 4d
@@ -66,13 +66,13 @@ gantt
 ### M0 — Planning & Scaffold ✅
 All 8 planning documents finalized. Repository scaffolded with folder structure.
 
-### M1 — Core C# Backend
-**Deliverables:** ASP.NET Core project, PdfPig text extraction, text chunking, SQLite database, document CRUD API, static file serving.
+### M1 — Core Python Backend
+**Deliverables:** FastAPI project, PyMuPDF text extraction, text chunking, SQLite database, document CRUD API, static file serving.
 **Definition of Done:** Upload a PDF via API → text extracted and chunks stored in SQLite.
 
-### M2 — Python Worker Integration
-**Deliverables:** Python Flask worker, sentence-transformers embedding, FAISS index, C#→Python bridge service.
-**DoD:** C# backend calls Python worker → embeddings generated → stored in FAISS.
+### M2 — Embeddings & Vector Search
+**Deliverables:** sentence-transformers embedding service, FAISS vector index (with numpy fallback), semantic search endpoint.
+**DoD:** Upload a PDF → embeddings generated → stored in FAISS → semantic search returns ranked results.
 
 ### M3 — Web UI & PDF Viewer
 **Deliverables:** `index.html` with cozy UI, document selector, search prompt box, results list, PDF.js viewer, responsive layout.
