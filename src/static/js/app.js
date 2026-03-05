@@ -388,14 +388,11 @@ async function buildMatches(results, query) {
   for (const [pageStr, pageResults] of Object.entries(pageGroups)) {
     const page = parseInt(pageStr);
 
-    // Try to get text positions for key phrases
+    // Try to get text positions for the user's query directly
     for (const result of pageResults) {
-      // Use first few significant words from the snippet for highlighting
-      const snippetWords = result.snippet.split(/\s+/).slice(0, 8).join(' ');
-
       try {
         const posData = await api('GET',
-          `/api/documents/${state.currentDocId}/text-positions?page=${page}&q=${encodeURIComponent(snippetWords.substring(0, 40))}`
+          `/api/documents/${state.currentDocId}/text-positions?page=${page}&q=${encodeURIComponent(query)}`
         );
 
         if (posData.rects && posData.rects.length > 0) {
@@ -457,7 +454,7 @@ async function navigateToMatch(index) {
   updateMatchCounter();
 }
 
-function drawHighlightsForPage(pageNum) {
+async function drawHighlightsForPage(pageNum) {
   els.highlightLayer.innerHTML = '';
 
   const pageMatches = state.matches.filter(m => m.page === pageNum);
@@ -501,6 +498,41 @@ function drawHighlightsForPage(pageNum) {
       els.highlightLayer.appendChild(div);
     }
   });
+
+  // Draw saved custom highlights
+  if (!state.currentDocId) return;
+  try {
+    const highlights = await api('GET', `/api/documents/${state.currentDocId}/highlights?page=${pageNum}`);
+    for (const h of highlights) {
+      if (h.page_number !== pageNum) continue;
+
+      try {
+        // Fetch precise text positioning for this custom highlight
+        const posData = await api('GET', `/api/documents/${state.currentDocId}/text-positions?page=${pageNum}&q=${encodeURIComponent(h.text_content)}`);
+
+        if (posData.rects && posData.rects.length > 0) {
+          posData.rects.forEach(rect => {
+            const div = document.createElement('div');
+            div.className = 'qg-highlight-rect';
+            div.style.left = (rect.x0 * 100) + '%';
+            div.style.top = (rect.y0 * 100) + '%';
+            div.style.width = (rect.width * 100) + '%';
+            div.style.height = (rect.height * 100) + '%';
+            div.style.background = hexToRgba(h.color, 0.45);
+            div.style.borderColor = h.color;
+            div.style.borderWidth = '1px';
+            div.style.borderStyle = 'solid';
+            div.title = "Saved Highlight: " + h.text_content;
+            els.highlightLayer.appendChild(div);
+          });
+        }
+      } catch (err) {
+        console.warn('Could not locate highlight on page', err);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load saved highlights for page', pageNum, e);
+  }
 }
 
 function updateMatchCounter() {
@@ -558,6 +590,146 @@ function hexToRgba(hex, alpha) {
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+
+// ══════════════════════════════════════════════════
+// Tabs UI
+// ══════════════════════════════════════════════════
+
+document.querySelectorAll('.qg-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    // Hide all
+    document.querySelectorAll('.qg-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.qg-tab-content').forEach(c => {
+      c.classList.remove('active');
+      c.style.display = 'none';
+    });
+
+    // Show clicked
+    tab.classList.add('active');
+    const target = document.getElementById(tab.dataset.target);
+    target.classList.add('active');
+    if (tab.dataset.target === 'search-view') {
+      target.style.display = 'block';
+    } else {
+      target.style.display = 'flex';
+      loadSavedHighlights();
+    }
+  });
+});
+
+
+// ══════════════════════════════════════════════════
+// Saved Highlights Management (Light Blue)
+// ══════════════════════════════════════════════════
+
+async function loadSavedHighlights() {
+  if (!state.currentDocId) return;
+
+  try {
+    const highlights = await api('GET', `/api/documents/${state.currentDocId}/highlights`);
+    const container = document.getElementById('qg-highlights-list');
+
+    if (highlights.length === 0) {
+      container.innerHTML = `
+        <div class="qg-empty-state" id="empty-highlights-state">
+          <div class="qg-empty-icon">🖍️</div>
+          <p>No highlights yet. Select text on the PDF to save it.</p>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    highlights.forEach(h => {
+      html += `
+        <div class="qg-result-card" data-page="${h.page_number}">
+          <div class="qg-result-header">
+            <span class="qg-result-page">📄 Page ${h.page_number}</span>
+            <button class="qg-btn-sm btn-delete-highlight" data-id="${h.id}" title="Delete highlight" style="color:var(--danger); border:none; background:transparent">✖</button>
+          </div>
+          <p class="qg-result-snippet" style="border-left: 4px solid ${h.color}; padding-left: 8px;">${escapeHtml(h.text_content)}</p>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+    // Attach click to navigate
+    container.querySelectorAll('.qg-result-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-delete-highlight')) return; // ignore delete clicks
+        const page = parseInt(card.dataset.page);
+        if (state.currentPage !== page) {
+          renderPage(page);
+        }
+      });
+    });
+
+    // Attach click to delete
+    container.querySelectorAll('.btn-delete-highlight').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('Delete this highlight?')) {
+          try {
+            await api('DELETE', `/api/highlights/${btn.dataset.id}`);
+            loadSavedHighlights();
+            if (state.currentPage) {
+              renderPage(state.currentPage); // redraw current page without it
+            }
+          } catch (err) {
+            showToast('Failed to delete highlight', 'error');
+          }
+        }
+      });
+    });
+
+  } catch (e) {
+    showToast(`Failed to load highlights: ${e.message}`, 'error');
+  }
+}
+
+// Intercept mouse drag selections on the canvas to create custom highlights
+els.pdfContainer.addEventListener('mouseup', async () => {
+  if (!state.currentDocId || !state.currentPage) return;
+
+  const selection = window.getSelection();
+  const text = selection.toString().trim();
+  if (!text || text.length < 3) return;
+
+  // Ask for confirmation
+  if (!confirm(`Save highlight for:\\n"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"?`)) {
+    selection.removeAllRanges();
+    return;
+  }
+
+  try {
+    await api('POST', '/api/highlights', {
+      document_id: state.currentDocId,
+      page_number: state.currentPage,
+      text_content: text,
+      color: '#ADD8E6' // Custom Light Blue
+    });
+
+    showToast('Highlight saved!', 'success');
+    selection.removeAllRanges();
+
+    // Switch to Highlights tab if not already on it to show the new highlight
+    const tabHighlights = document.querySelector('.qg-tab[data-target="highlights-view"]');
+    if (tabHighlights && !tabHighlights.classList.contains('active')) {
+      tabHighlights.click();
+    } else {
+      loadSavedHighlights();
+    }
+
+    // Overwrite the current search matches if any with a fresh un-matched page so the custom highlights render properly?
+    // Actually, just re-rendering the page is best to fetch backend highlights.
+    // Wait, the backend draws API highlights separately? No, our JS draws highlights based on `state.matches`.
+    // We need to also fetch backend highlights in `drawHighlightsForPage`. Let's augment `renderPage` or `drawHighlightsForPage`.
+    renderPage(state.currentPage);
+
+  } catch (e) {
+    showToast(`Highlight failed: ${e.message}`, 'error');
+  }
+});
 
 
 // ══════════════════════════════════════════════════
@@ -623,7 +795,7 @@ document.addEventListener('keydown', (e) => {
   // Esc: Clear results
   if (e.key === 'Escape') {
     clearResults();
-    if (state.currentPage) drawHighlightsForPage(state.currentPage);
+    if (state.currentPage) renderPage(state.currentPage);
   }
 });
 

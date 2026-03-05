@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
+
 <body>
 
   <!-- ─── Top Bar ─── -->
@@ -18,7 +20,8 @@
     <div class="qg-logo" id="qg-logo">
       <svg viewBox="0 0 40 40" class="qg-logo-icon">
         <circle cx="20" cy="20" r="18" fill="var(--accent)" />
-        <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="800" font-family="Nunito, sans-serif">QG</text>
+        <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="800"
+          font-family="Nunito, sans-serif">QG</text>
       </svg>
       <span class="qg-logo-text">QuickGuide</span>
     </div>
@@ -44,34 +47,46 @@
   <!-- ─── Main Content ─── -->
   <main class="qg-main" id="qg-main">
 
-    <!-- Left Panel: Search & Results -->
+    <!-- Left Panel: Search & Results / Highlights -->
     <aside class="qg-panel qg-search-panel" id="qg-search-panel">
 
-      <!-- Search Box -->
-      <div class="qg-search-box" id="qg-search-box">
-        <h2 class="qg-panel-title">🔍 Search Your Document</h2>
-        <div class="qg-search-input-wrap">
-          <input
-            type="text"
-            id="search-input"
-            class="qg-input"
-            placeholder="Ask a question about your document..."
-            autocomplete="off"
-          >
-          <button id="btn-search" class="qg-btn qg-btn-accent" title="Search (Enter)">Search</button>
-        </div>
-        <p class="qg-hint" id="search-hint">
-          Try: "What are the rules for compaction thickness?"
-        </p>
+      <!-- Tabs -->
+      <div class="qg-tabs" id="qg-tabs">
+        <button class="qg-tab active" data-target="search-view">Search</button>
+        <button class="qg-tab" data-target="highlights-view">My Highlights</button>
       </div>
 
-      <!-- Results List -->
-      <div class="qg-results" id="qg-results">
-        <div class="qg-empty-state" id="empty-state">
-          <div class="qg-empty-icon">📖</div>
-          <p>Select a document and ask a question to get started.</p>
+      <div id="search-view" class="qg-tab-content active">
+        <!-- Search Box -->
+        <div class="qg-search-box" id="qg-search-box">
+          <h2 class="qg-panel-title" style="display:none">🔍 Search</h2>
+          <div class="qg-search-input-wrap">
+            <input type="text" id="search-input" class="qg-input" placeholder="Ask a question about your document..."
+              autocomplete="off">
+            <button id="btn-search" class="qg-btn qg-btn-accent" title="Search (Enter)">Search</button>
+          </div>
+          <p class="qg-hint" id="search-hint">
+            Try: "What are the rules for compaction thickness?"
+          </p>
         </div>
-        <!-- Results will be injected here -->
+
+        <!-- Results List -->
+        <div class="qg-results" id="qg-results">
+          <div class="qg-empty-state" id="empty-state">
+            <div class="qg-empty-icon">📖</div>
+            <p>Select a document and ask a question to get started.</p>
+          </div>
+          <!-- Results will be injected here -->
+        </div>
+      </div>
+
+      <div id="highlights-view" class="qg-tab-content" style="display:none; flex-direction:column; height: 100%;">
+        <div class="qg-results" id="qg-highlights-list" style="flex:1">
+          <div class="qg-empty-state" id="empty-highlights-state">
+            <div class="qg-empty-icon">🖍️</div>
+            <p>Select text on the PDF using your mouse to highlight it.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Highlight Toolbar -->
@@ -83,7 +98,8 @@
         </div>
         <div class="qg-color-picker-wrap">
           <label for="highlight-color" class="qg-color-label">Highlight Color:</label>
-          <input type="color" id="highlight-color" value="#FFE066" class="qg-color-picker" title="Change highlight color">
+          <input type="color" id="highlight-color" value="#FFE066" class="qg-color-picker"
+            title="Change highlight color">
           <div class="qg-color-presets">
             <button class="qg-color-swatch" data-color="#FFE066" title="Yellow" style="background:#FFE066"></button>
             <button class="qg-color-swatch" data-color="#A8E6CF" title="Green" style="background:#A8E6CF"></button>
@@ -100,8 +116,9 @@
       <div class="qg-viewer-placeholder" id="viewer-placeholder">
         <div class="qg-placeholder-content">
           <svg viewBox="0 0 120 120" class="qg-placeholder-icon">
-            <circle cx="60" cy="60" r="55" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="2"/>
-            <text x="60" y="72" text-anchor="middle" fill="var(--accent)" font-size="42" font-weight="800" font-family="Nunito, sans-serif">QG</text>
+            <circle cx="60" cy="60" r="55" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="2" />
+            <text x="60" y="72" text-anchor="middle" fill="var(--accent)" font-size="42" font-weight="800"
+              font-family="Nunito, sans-serif">QG</text>
           </svg>
           <h2>Welcome to QuickGuide</h2>
           <p>Upload a PDF and ask questions to navigate directly to the answers.</p>
@@ -142,4 +159,5 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
   <script src="/static/js/app.js" type="module"></script>
 </body>
+
 </html>

@@ -59,7 +59,17 @@ def search_text_on_page(pdf_path: str | Path, page_number: int, query: str) -> l
             return []
 
         page = doc[page_number - 1]
-        rects = page.search_for(query)
+        
+        # Search for each word individually if the query is long, to avoid exact string match failures over line breaks
+        words = [w for w in query.replace('\n', ' ').split() if len(w) > 2]
+        if not words:
+            words = [query]
+            
+        rects = []
+        for word in words:
+            word_rects = page.search_for(word)
+            rects.extend(word_rects)
+            
         page_rect = page.rect
 
         results = []
