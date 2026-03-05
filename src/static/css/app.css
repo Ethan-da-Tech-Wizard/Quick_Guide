@@ -566,34 +566,71 @@ body {
 }
 
 /* PDF container */
-.qg-pdf-container {
+.qg-pdf-scroll-container {
   flex: 1;
   position: relative;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: auto;
   display: flex;
-  justify-content: center;
-  padding: 16px;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
   background: #e8e0d8;
+  gap: 20px;
 }
 
-#pdf-canvas {
+.qg-page-wrapper {
+  position: relative;
   box-shadow: var(--shadow-lg);
   border-radius: 2px;
-  max-width: 100%;
+  background: white;
+  margin: 0 auto;
+  transition: opacity var(--transition);
 }
 
+.qg-page-wrapper.loading {
+  opacity: 0.5;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23E07A5F" stroke-width="4" opacity="0.2"/><path d="M25 5 A 20 20 0 0 1 45 25" fill="none" stroke="%23E07A5F" stroke-width="4"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></path></svg>') center center no-repeat white;
+}
+
+.qg-pdf-canvas {
+  display: block;
+}
+
+/* PDF.js Text Layer */
 .qg-text-layer {
   position: absolute;
-  top: 0;
   left: 0;
-  pointer-events: none;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.2;
+  /* To allow native selection coloring */
+  line-height: 1.0;
+  pointer-events: auto;
 }
 
+.qg-text-layer span {
+  color: transparent !important;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.qg-text-layer br {
+  display: none;
+}
+
+/* Highlight Layer */
 .qg-highlight-layer {
   position: absolute;
   top: 0;
   left: 0;
   pointer-events: none;
+  width: 100%;
+  height: 100%;
 }
 
 .qg-highlight-rect {
@@ -611,21 +648,26 @@ body {
   box-shadow: 0 0 8px rgba(224, 122, 95, 0.4);
 }
 
-/* Page navigation */
-.qg-page-nav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 10px 16px;
+/* Floating Page Indicator */
+.qg-floating-indicator {
+  position: absolute;
+  top: 16px;
+  right: 24px;
   background: var(--surface);
-  border-top: 1px solid var(--border);
+  color: var(--primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-xl);
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  z-index: 10;
+  opacity: 0.9;
+  transition: opacity var(--transition);
 }
 
-.qg-page-indicator {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--primary);
+.qg-floating-indicator:hover {
+  opacity: 1;
 }
 
 /* ── Modal ─────────────────────────────────── */
@@ -724,23 +766,23 @@ body {
 
 /* ── Scrollbar ─────────────────────────────── */
 .qg-results::-webkit-scrollbar,
-.qg-pdf-container::-webkit-scrollbar {
+.qg-pdf-scroll-container::-webkit-scrollbar {
   width: 6px;
 }
 
 .qg-results::-webkit-scrollbar-track,
-.qg-pdf-container::-webkit-scrollbar-track {
+.qg-pdf-scroll-container::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .qg-results::-webkit-scrollbar-thumb,
-.qg-pdf-container::-webkit-scrollbar-thumb {
+.qg-pdf-scroll-container::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
 }
 
 .qg-results::-webkit-scrollbar-thumb:hover,
-.qg-pdf-container::-webkit-scrollbar-thumb:hover {
+.qg-pdf-scroll-container::-webkit-scrollbar-thumb:hover {
   background: var(--text-light);
 }
 

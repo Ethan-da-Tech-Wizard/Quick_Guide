@@ -129,15 +129,13 @@
           </ol>
         </div>
       </div>
-      <div id="pdf-container" class="qg-pdf-container" style="display:none">
-        <canvas id="pdf-canvas"></canvas>
-        <div id="text-layer" class="qg-text-layer"></div>
-        <div id="highlight-layer" class="qg-highlight-layer"></div>
+      <div id="pdf-container" class="qg-pdf-scroll-container" style="display:none">
+        <!-- Dynamic .qg-page-wrapper elements will be injected here by JS -->
       </div>
-      <div class="qg-page-nav" id="page-nav" style="display:none">
-        <button id="btn-prev-page" class="qg-btn qg-btn-sm">◀ Prev Page</button>
-        <span id="page-indicator" class="qg-page-indicator">Page 1 of 1</span>
-        <button id="btn-next-page" class="qg-btn qg-btn-sm">Next Page ▶</button>
+
+      <!-- Floating Page Indicator -->
+      <div id="floating-page-indicator" class="qg-floating-indicator" style="display:none">
+        Page 1 of 1
       </div>
     </section>
   </main>

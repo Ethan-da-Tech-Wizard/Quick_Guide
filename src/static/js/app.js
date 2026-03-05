@@ -42,16 +42,15 @@ const els = {
   highlightColor: document.getElementById('highlight-color'),
   viewerPlaceholder: document.getElementById('viewer-placeholder'),
   pdfContainer: document.getElementById('pdf-container'),
-  pdfCanvas: document.getElementById('pdf-canvas'),
-  highlightLayer: document.getElementById('highlight-layer'),
-  pageNav: document.getElementById('page-nav'),
-  btnPrevPage: document.getElementById('btn-prev-page'),
-  btnNextPage: document.getElementById('btn-next-page'),
-  pageIndicator: document.getElementById('page-indicator'),
+  floatingPageIndicator: document.getElementById('floating-page-indicator'),
   progressModal: document.getElementById('progress-modal'),
   progressBar: document.getElementById('progress-bar'),
   progressMessage: document.getElementById('progress-message'),
 };
+
+// ── Intersection Observer for Lazy Rendering ──
+let pageObserver = null;
+const renderedPages = new Set();
 
 
 // ══════════════════════════════════════════════════
@@ -179,8 +178,7 @@ async function selectDocument(docId) {
     state.currentPage = 1;
 
     hidePlaceholder();
-    renderPage(state.currentPage);
-    updatePageNav();
+    initScrollContainer();
   } catch (e) {
     showToast(`Failed to load PDF: ${e.message}`, 'error');
   }
@@ -206,59 +204,152 @@ async function deleteDocument() {
 
 
 // ══════════════════════════════════════════════════
-// PDF Rendering
+// Continuous PDF Rendering
 // ══════════════════════════════════════════════════
 
-async function renderPage(pageNum) {
-  if (!state.pdfDoc) return;
+async function initScrollContainer() {
+  els.pdfContainer.innerHTML = '';
+  renderedPages.clear();
+
+  if (pageObserver) {
+    pageObserver.disconnect();
+  }
+
+  // Calculate base dimensions
+  const firstPage = await state.pdfDoc.getPage(1);
+  const viewport = firstPage.getViewport({ scale: state.scale });
+  const aspectRatio = viewport.height / viewport.width;
+
+  // Fallback to viewport width if the container hasn't painted yet
+  const containerWidth = els.pdfContainer.clientWidth;
+  const safeWidth = containerWidth > 40 ? containerWidth - 40 : viewport.width;
+  const wrapperWidth = Math.min(viewport.width, safeWidth);
+  const estimatedHeight = wrapperWidth * Math.max(aspectRatio, 1.0);
+
+  pageObserver = new IntersectionObserver(handleIntersection, {
+    root: els.pdfContainer,
+    rootMargin: '400px 0px 400px 0px', // Pre-render 400px outside viewport
+    threshold: 0.01
+  });
+
+  // Create empty wrapper divs for all pages
+  for (let i = 1; i <= state.totalPages; i++) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'qg-page-wrapper loading';
+    wrapper.id = `page-wrapper-${i}`;
+    wrapper.dataset.page = i;
+
+    // Set estimated dimensions to reserve space
+    wrapper.style.width = wrapperWidth + 'px';
+    wrapper.style.height = estimatedHeight + 'px';
+
+    // Add canvas and layers placeholders
+    wrapper.innerHTML = `
+      <canvas class="qg-pdf-canvas"></canvas>
+      <div class="qg-text-layer"></div>
+      <div class="qg-highlight-layer"></div>
+    `;
+
+    els.pdfContainer.appendChild(wrapper);
+    pageObserver.observe(wrapper);
+  }
+
+  updatePageIndicatorContainer();
+
+  // Also track which page is mostly in view to update the floating indicator
+  els.pdfContainer.addEventListener('scroll', updatePageIndicatorContainer, { passive: true });
+}
+
+function handleIntersection(entries) {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const pageNum = parseInt(entry.target.dataset.page);
+      if (!renderedPages.has(pageNum)) {
+        renderPageIntoWrapper(pageNum, entry.target);
+      }
+    }
+  });
+}
+
+async function renderPageIntoWrapper(pageNum, wrapper) {
+  renderedPages.add(pageNum);
 
   const page = await state.pdfDoc.getPage(pageNum);
   const viewport = page.getViewport({ scale: state.scale });
 
-  const canvas = els.pdfCanvas;
+  const canvas = wrapper.querySelector('.qg-pdf-canvas');
   const ctx = canvas.getContext('2d');
+
+  // Use exact dimensions now that we have the specific page
+  wrapper.style.width = viewport.width + 'px';
+  wrapper.style.height = viewport.height + 'px';
+
   canvas.width = viewport.width;
   canvas.height = viewport.height;
 
-  // Clear highlight layer
-  els.highlightLayer.innerHTML = '';
-  els.highlightLayer.style.width = viewport.width + 'px';
-  els.highlightLayer.style.height = viewport.height + 'px';
-
-  // Position highlight layer over canvas
-  const containerRect = els.pdfContainer.getBoundingClientRect();
-  const canvasRect = canvas.getBoundingClientRect();
-
   await page.render({ canvasContext: ctx, viewport }).promise;
 
-  // Reposition highlight layer after render
-  requestAnimationFrame(() => {
-    const rect = canvas.getBoundingClientRect();
-    const parentRect = els.pdfContainer.getBoundingClientRect();
-    els.highlightLayer.style.left = (rect.left - parentRect.left + els.pdfContainer.scrollLeft) + 'px';
-    els.highlightLayer.style.top = (rect.top - parentRect.top + els.pdfContainer.scrollTop) + 'px';
-    els.highlightLayer.style.width = rect.width + 'px';
-    els.highlightLayer.style.height = rect.height + 'px';
+  // Render invisible text layer for selection
+  const textLayerDiv = wrapper.querySelector('.qg-text-layer');
+  if (textLayerDiv) {
+    textLayerDiv.style.width = viewport.width + 'px';
+    textLayerDiv.style.height = viewport.height + 'px';
+    textLayerDiv.innerHTML = '';
 
-    // Draw highlights for this page
-    drawHighlightsForPage(pageNum);
-  });
+    try {
+      const textContent = await page.getTextContent();
+      await pdfjsLib.renderTextLayer({
+        textContentSource: textContent,
+        container: textLayerDiv,
+        viewport: viewport,
+        textDivs: []
+      }).promise;
+    } catch (err) {
+      console.warn("Text layer rendering failed for page " + pageNum, err);
+    }
+  }
 
-  state.currentPage = pageNum;
-  updatePageNav();
+  wrapper.classList.remove('loading');
+
+  // Draw highlights specific to this page
+  drawHighlightsForPage(pageNum);
 }
 
-function updatePageNav() {
-  els.pageNav.style.display = state.pdfDoc ? 'flex' : 'none';
-  els.pageIndicator.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
-  els.btnPrevPage.disabled = state.currentPage <= 1;
-  els.btnNextPage.disabled = state.currentPage >= state.totalPages;
+function updatePageIndicatorContainer() {
+  if (!state.pdfDoc) return;
+  els.floatingPageIndicator.style.display = 'block';
+
+  // Find which wrapper is closest to the top of the container
+  const containerTop = els.pdfContainer.scrollTop;
+  const wrappers = Array.from(els.pdfContainer.querySelectorAll('.qg-page-wrapper'));
+
+  let closestPage = 1;
+  let minDiff = Infinity;
+
+  wrappers.forEach(w => {
+    const diff = Math.abs(w.offsetTop - containerTop);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestPage = parseInt(w.dataset.page);
+    }
+  });
+
+  state.currentPage = closestPage;
+  els.floatingPageIndicator.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
+}
+
+async function renderPage(pageNum) {
+  // Polyfill the old renderPage function for external compat
+  const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
+  if (wrapper) {
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function showPlaceholder() {
   els.viewerPlaceholder.style.display = 'flex';
   els.pdfContainer.style.display = 'none';
-  els.pageNav.style.display = 'none';
+  if (els.floatingPageIndicator) els.floatingPageIndicator.style.display = 'none';
 }
 
 function hidePlaceholder() {
@@ -356,13 +447,27 @@ function clearResults() {
   state.searchResults = [];
   state.matches = [];
   state.currentMatchIndex = -1;
-  els.resultsContainer.innerHTML = `
-    <div class="qg-empty-state" id="empty-state">
-      <div class="qg-empty-icon">📖</div>
-      <p>Select a document and ask a question to get started.</p>
-    </div>`;
+  state.isSearching = false;
+
+  els.resultsContainer.innerHTML = '';
+  els.resultsContainer.style.display = 'none';
+  els.emptyState.style.display = 'flex';
   els.highlightToolbar.style.display = 'none';
-  els.highlightLayer.innerHTML = '';
+  els.searchInput.value = '';
+
+  // Clear all page highlights
+  document.querySelectorAll('.qg-highlight-layer').forEach(layer => {
+    layer.innerHTML = '';
+  });
+
+  // Re-draw saved highlights if needed
+  if (state.currentPage) {
+    // We don't renderPage() here to avoid loop, just rely on standard draw.
+    // drawHighlightsForPage handles both custom and search matches.
+    for (let i = 1; i <= state.totalPages; i++) {
+      drawHighlightsForPage(i);
+    }
+  }
 }
 
 
@@ -455,7 +560,12 @@ async function navigateToMatch(index) {
 }
 
 async function drawHighlightsForPage(pageNum) {
-  els.highlightLayer.innerHTML = '';
+  const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
+  if (!wrapper) return;
+  const highlightLayer = wrapper.querySelector('.qg-highlight-layer');
+  if (!highlightLayer) return;
+
+  highlightLayer.innerHTML = '';
 
   const pageMatches = state.matches.filter(m => m.page === pageNum);
   const color = state.highlightColor;
@@ -473,7 +583,7 @@ async function drawHighlightsForPage(pageNum) {
         div.style.height = (rect.height * 100) + '%';
         div.style.background = hexToRgba(color, isActive ? 0.6 : 0.35);
         div.style.borderColor = hexToRgba(color, 0.9);
-        els.highlightLayer.appendChild(div);
+        highlightLayer.appendChild(div);
 
         // Scroll into view if active
         if (isActive) {
@@ -482,7 +592,7 @@ async function drawHighlightsForPage(pageNum) {
             const highlightRect = div.getBoundingClientRect();
             const scrollTarget = highlightRect.top - containerRect.top + els.pdfContainer.scrollTop - 100;
             els.pdfContainer.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-          }, 100);
+          }, 200);
         }
       });
     } else if (isActive) {
@@ -495,7 +605,7 @@ async function drawHighlightsForPage(pageNum) {
       div.style.height = '4px';
       div.style.background = hexToRgba(color, 0.8);
       div.style.borderColor = color;
-      els.highlightLayer.appendChild(div);
+      highlightLayer.appendChild(div);
     }
   });
 
@@ -523,7 +633,12 @@ async function drawHighlightsForPage(pageNum) {
             div.style.borderWidth = '1px';
             div.style.borderStyle = 'solid';
             div.title = "Saved Highlight: " + h.text_content;
-            els.highlightLayer.appendChild(div);
+
+            const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
+            if (wrapper) {
+              const highlightLayer = wrapper.querySelector('.qg-highlight-layer');
+              if (highlightLayer) highlightLayer.appendChild(div);
+            }
           });
         }
       } catch (err) {
@@ -688,8 +803,12 @@ async function loadSavedHighlights() {
 }
 
 // Intercept mouse drag selections on the canvas to create custom highlights
-els.pdfContainer.addEventListener('mouseup', async () => {
-  if (!state.currentDocId || !state.currentPage) return;
+els.pdfContainer.addEventListener('mouseup', async (e) => {
+  if (!state.currentDocId) return;
+
+  const wrapper = e.target.closest('.qg-page-wrapper');
+  if (!wrapper) return;
+  const pageNum = parseInt(wrapper.dataset.page);
 
   const selection = window.getSelection();
   const text = selection.toString().trim();
@@ -704,7 +823,7 @@ els.pdfContainer.addEventListener('mouseup', async () => {
   try {
     await api('POST', '/api/highlights', {
       document_id: state.currentDocId,
-      page_number: state.currentPage,
+      page_number: pageNum,
       text_content: text,
       color: '#ADD8E6' // Custom Light Blue
     });
@@ -720,11 +839,8 @@ els.pdfContainer.addEventListener('mouseup', async () => {
       loadSavedHighlights();
     }
 
-    // Overwrite the current search matches if any with a fresh un-matched page so the custom highlights render properly?
-    // Actually, just re-rendering the page is best to fetch backend highlights.
-    // Wait, the backend draws API highlights separately? No, our JS draws highlights based on `state.matches`.
-    // We need to also fetch backend highlights in `drawHighlightsForPage`. Let's augment `renderPage` or `drawHighlightsForPage`.
-    renderPage(state.currentPage);
+    // Refresh the specific wrapper to fetch and render the new highlight
+    renderPageIntoWrapper(pageNum, wrapper);
 
   } catch (e) {
     showToast(`Highlight failed: ${e.message}`, 'error');
@@ -755,14 +871,6 @@ els.btnDeleteDoc.addEventListener('click', deleteDocument);
 els.btnSearch.addEventListener('click', performSearch);
 els.searchInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') performSearch();
-});
-
-// Page navigation
-els.btnPrevPage.addEventListener('click', () => {
-  if (state.currentPage > 1) renderPage(state.currentPage - 1);
-});
-els.btnNextPage.addEventListener('click', () => {
-  if (state.currentPage < state.totalPages) renderPage(state.currentPage + 1);
 });
 
 // Match navigation
