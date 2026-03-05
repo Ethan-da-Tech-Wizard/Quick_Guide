@@ -77,3 +77,4 @@ You don't need to pre-load PDFs anywhere! Simply:
 | FAISS install fails | The app falls back to numpy search automatically |
 | Slow first search | The AI model loads on first query (~2-3 seconds) |
 | PDF doesn't render | Make sure the PDF contains text (not scanned images) |
+| "Search failed" pop-up | This happens if another QuickGuide tab/server broke the connection. Run `taskkill /F /IM python.exe` and restart `qg.bat`. |
