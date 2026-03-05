@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="QuickGuide — Upload a PDF, ask a question, get taken straight to the answer.">
+  <title>QuickGuide — PDF Search & Navigation</title>
+  <link rel="icon" href="/static/img/qg-favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+
+  <!-- ─── Top Bar ─── -->
+  <header class="qg-header" id="qg-header">
+    <div class="qg-logo" id="qg-logo">
+      <svg viewBox="0 0 40 40" class="qg-logo-icon">
+        <circle cx="20" cy="20" r="18" fill="var(--accent)" />
+        <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="800" font-family="Nunito, sans-serif">QG</text>
+      </svg>
+      <span class="qg-logo-text">QuickGuide</span>
+    </div>
+
+    <div class="qg-doc-selector" id="qg-doc-selector">
+      <label for="doc-select" class="qg-doc-label">Document:</label>
+      <select id="doc-select" class="qg-select">
+        <option value="">— Select a document —</option>
+      </select>
+      <button id="btn-upload" class="qg-btn qg-btn-primary" title="Upload a new PDF">
+        <span class="qg-btn-icon">📄</span> Select a Document
+      </button>
+      <input type="file" id="file-input" accept=".pdf" style="display:none">
+    </div>
+
+    <div class="qg-header-actions">
+      <button id="btn-delete-doc" class="qg-btn qg-btn-danger" title="Delete selected document" style="display:none">
+        🗑️ Delete
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── Main Content ─── -->
+  <main class="qg-main" id="qg-main">
+
+    <!-- Left Panel: Search & Results -->
+    <aside class="qg-panel qg-search-panel" id="qg-search-panel">
+
+      <!-- Search Box -->
+      <div class="qg-search-box" id="qg-search-box">
+        <h2 class="qg-panel-title">🔍 Search Your Document</h2>
+        <div class="qg-search-input-wrap">
+          <input
+            type="text"
+            id="search-input"
+            class="qg-input"
+            placeholder="Ask a question about your document..."
+            autocomplete="off"
+          >
+          <button id="btn-search" class="qg-btn qg-btn-accent" title="Search (Enter)">Search</button>
+        </div>
+        <p class="qg-hint" id="search-hint">
+          Try: "What are the rules for compaction thickness?"
+        </p>
+      </div>
+
+      <!-- Results List -->
+      <div class="qg-results" id="qg-results">
+        <div class="qg-empty-state" id="empty-state">
+          <div class="qg-empty-icon">📖</div>
+          <p>Select a document and ask a question to get started.</p>
+        </div>
+        <!-- Results will be injected here -->
+      </div>
+
+      <!-- Highlight Toolbar -->
+      <div class="qg-highlight-toolbar" id="qg-highlight-toolbar" style="display:none">
+        <div class="qg-match-nav">
+          <button id="btn-prev-match" class="qg-btn qg-btn-sm" title="Previous match (Ctrl+←)">◀</button>
+          <span id="match-counter" class="qg-match-counter">Match 0 of 0</span>
+          <button id="btn-next-match" class="qg-btn qg-btn-sm" title="Next match (Ctrl+→)">▶</button>
+        </div>
+        <div class="qg-color-picker-wrap">
+          <label for="highlight-color" class="qg-color-label">Highlight Color:</label>
+          <input type="color" id="highlight-color" value="#FFE066" class="qg-color-picker" title="Change highlight color">
+          <div class="qg-color-presets">
+            <button class="qg-color-swatch" data-color="#FFE066" title="Yellow" style="background:#FFE066"></button>
+            <button class="qg-color-swatch" data-color="#A8E6CF" title="Green" style="background:#A8E6CF"></button>
+            <button class="qg-color-swatch" data-color="#87CEEB" title="Blue" style="background:#87CEEB"></button>
+            <button class="qg-color-swatch" data-color="#FFB7B2" title="Pink" style="background:#FFB7B2"></button>
+            <button class="qg-color-swatch" data-color="#FFDAC1" title="Orange" style="background:#FFDAC1"></button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Panel: PDF Viewer -->
+    <section class="qg-viewer" id="qg-viewer">
+      <div class="qg-viewer-placeholder" id="viewer-placeholder">
+        <div class="qg-placeholder-content">
+          <svg viewBox="0 0 120 120" class="qg-placeholder-icon">
+            <circle cx="60" cy="60" r="55" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="2"/>
+            <text x="60" y="72" text-anchor="middle" fill="var(--accent)" font-size="42" font-weight="800" font-family="Nunito, sans-serif">QG</text>
+          </svg>
+          <h2>Welcome to QuickGuide</h2>
+          <p>Upload a PDF and ask questions to navigate directly to the answers.</p>
+          <ol class="qg-steps">
+            <li><strong>Select a Document</strong> — Click the button above to upload a PDF</li>
+            <li><strong>Ask a Question</strong> — Type your question in the search box</li>
+            <li><strong>Navigate & Highlight</strong> — Click results to jump to the answer</li>
+          </ol>
+        </div>
+      </div>
+      <div id="pdf-container" class="qg-pdf-container" style="display:none">
+        <canvas id="pdf-canvas"></canvas>
+        <div id="text-layer" class="qg-text-layer"></div>
+        <div id="highlight-layer" class="qg-highlight-layer"></div>
+      </div>
+      <div class="qg-page-nav" id="page-nav" style="display:none">
+        <button id="btn-prev-page" class="qg-btn qg-btn-sm">◀ Prev Page</button>
+        <span id="page-indicator" class="qg-page-indicator">Page 1 of 1</span>
+        <button id="btn-next-page" class="qg-btn qg-btn-sm">Next Page ▶</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ─── Upload Progress Modal ─── -->
+  <div class="qg-modal-overlay" id="progress-modal" style="display:none">
+    <div class="qg-modal">
+      <h3>📥 Uploading & Indexing</h3>
+      <div class="qg-progress-bar-wrap">
+        <div class="qg-progress-bar" id="progress-bar" style="width:0%"></div>
+      </div>
+      <p id="progress-message" class="qg-progress-msg">Preparing...</p>
+    </div>
+  </div>
+
+  <!-- ─── Toast Container ─── -->
+  <div id="toast-container" class="qg-toast-container"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+  <script src="/static/js/app.js" type="module"></script>
+</body>
+</html>
