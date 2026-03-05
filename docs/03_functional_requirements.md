@@ -37,7 +37,7 @@
 | **Description** | Each text chunk is converted to a 384-dimensional vector embedding using `all-MiniLM-L6-v2`. |
 | **Input** | Text chunk content. |
 | **Output** | Float32 embedding vector stored in the vector index and referenced in the database. |
-| **Rules** | Embedding is generated via a Python worker subprocess. Batch size of 32 chunks for efficiency. |
+| **Rules** | Embedding is generated in-process within the FastAPI application. Batch size of 32 chunks for efficiency. |
 
 ### FR-ING-05 — Progress Feedback
 | Field | Detail |

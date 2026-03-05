@@ -33,7 +33,7 @@
 | **Probability** | Medium |
 | **Impact** | Medium |
 | **Description** | A 2,000-page PDF with dense tables may exceed the 2-minute ingestion target. |
-| **Mitigation** | C# PdfPig is fast for extraction. Batch embedding calls (32 chunks/batch). Background ingestion with progress updates. |
+| **Mitigation** | Python PyMuPDF is fast for extraction. Batch embedding calls (32 chunks/batch). Background ingestion with progress updates. |
 | **Contingency** | Show realistic progress; allow the user to search partially-ingested documents. |
 
 ### R-03 🟡 — PDF.js Rendering on Mobile Browsers
@@ -56,15 +56,15 @@
 | **Mitigation** | Combine vector search with keyword matching (hybrid ranking). Tune chunk size and overlap. |
 | **Contingency** | Swap to a larger model (`bge-base-en-v1.5`, 110 MB) or add a BM25 keyword fallback. |
 
-### R-05 🟡 — Dual Runtime Complexity (.NET + Python)
+### R-05 🟡 — Setup Complexity (Python + Dependencies)
 | Field | Detail |
 |---|---|
 | **Category** | User Experience |
 | **Probability** | Medium |
 | **Impact** | Medium |
-| **Description** | Users need both .NET 8 SDK and Python 3.11+ installed. This is more complex than a single-runtime app. |
-| **Mitigation** | The `qg.bat` / `qg.sh` launcher checks for both and prints clear install instructions if missing. QUICKSTART.md has step-by-step setup. |
-| **Contingency** | Provide a Docker Compose option for zero-install. Future: bundle with PyInstaller + self-contained .NET publish. |
+| **Description** | Users need Python 3.11+ installed. First-time setup includes virtual environment creation and dependency installation (~80 MB model download). |
+| **Mitigation** | The `qg.bat` / `qg.sh` launcher automates venv creation and pip install, printing clear instructions if Python is missing. QUICKSTART.md has step-by-step setup. |
+| **Contingency** | Provide a Docker Compose option for zero-install. Future: bundle with PyInstaller for a single-executable distribution. |
 
 ### R-06 🟢 — FAISS Wheel Unavailable on Some Platforms
 | Field | Detail |
@@ -91,18 +91,18 @@
 | **Category** | Technical |
 | **Probability** | Low |
 | **Impact** | Medium |
-| **Description** | Text extracted by PdfPig may not match PDF.js text layer character-for-character. |
+| **Description** | Text extracted by PyMuPDF may not match PDF.js text layer character-for-character. |
 | **Mitigation** | Use fuzzy substring matching in the frontend when searching the PDF.js text layer. |
 
-### R-09 🟢 — Python Worker Fails to Start
+### R-09 🟢 — FastAPI Process Fails to Start
 | Field | Detail |
 |---|---|
 | **Category** | Technical |
 | **Probability** | Low |
 | **Impact** | High |
-| **Description** | Python worker subprocess may fail (missing packages, wrong Python version). |
-| **Mitigation** | C# backend health-checks the worker on startup with retries. Launcher script validates Python and pip before starting. |
-| **Contingency** | Show a clear error in the UI: "ML worker not running — search disabled. Check terminal for details." |
+| **Description** | The FastAPI Python process may fail to start (missing packages, wrong Python version, port already in use). |
+| **Mitigation** | Launcher script validates Python and pip before starting. FastAPI startup errors are logged clearly in the terminal. |
+| **Contingency** | Show a clear error in the UI if API calls fail. QUICKSTART.md documents common failure modes and fixes (e.g., `QG_PORT` env var for port conflicts). |
 
 ### R-10 🟢 — Scope Creep
 | Field | Detail |

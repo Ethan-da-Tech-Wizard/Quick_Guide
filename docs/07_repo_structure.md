@@ -1,6 +1,6 @@
-# QuickGuide (QG) — Repository Structure Plan
+# QuickGuide (QG) — Repository Structure
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-03-05
 
 ---
@@ -23,65 +23,50 @@ Quick_Guide/
 │   ├── 07_repo_structure.md
 │   └── 08_risk_register.md
 │
-├── src/
-│   ├── QuickGuide.Api/               # C# ASP.NET Core project
-│   │   ├── QuickGuide.Api.csproj     # Project file with NuGet refs
-│   │   ├── Program.cs                # Entry point, DI, route mapping
-│   │   ├── Models/
-│   │   │   ├── Document.cs           # Document entity
-│   │   │   ├── TextChunk.cs          # Text chunk entity
-│   │   │   ├── Highlight.cs          # Highlight entity
-│   │   │   └── ApiModels.cs          # Request/response DTOs
-│   │   ├── Services/
-│   │   │   ├── PdfParserService.cs   # PdfPig text extraction
-│   │   │   ├── TextChunkerService.cs # Token-windowed text splitting
-│   │   │   ├── DocumentService.cs    # Document lifecycle (upload, list, delete)
-│   │   │   ├── SearchService.cs      # Search orchestration (calls Python)
-│   │   │   ├── HighlightService.cs   # Highlight CRUD
-│   │   │   └── PythonBridgeService.cs# HTTP client → Python worker
-│   │   ├── Data/
-│   │   │   └── DatabaseService.cs    # SQLite setup, migrations, Dapper queries
-│   │   └── wwwroot/                  # Static frontend files
-│   │       ├── index.html            # App shell
-│   │       ├── css/
-│   │       │   └── app.css           # Cozy design system
-│   │       ├── js/
-│   │       │   ├── app.js            # UI logic, API calls, state
-│   │       │   └── pdfviewer.js      # PDF.js integration + highlights
-│   │       ├── lib/
-│   │       │   └── pdfjs/            # PDF.js library (vendored)
-│   │       └── img/
-│   │           └── qg-logo.png       # QG logo for favicon + launcher
+├── src/                               # All application source code
+│   ├── main.py                        # FastAPI entry point, all route definitions
+│   ├── config.py                      # Paths, server settings, model/search params
+│   ├── models.py                      # Pydantic request/response models
+│   ├── database.py                    # SQLite connection, schema init, CRUD queries
 │   │
-│   └── python_worker/                # Python ML microservice
-│       ├── worker.py                 # Flask app: /embed, /search, /health
-│       ├── embedder.py               # sentence-transformers wrapper
-│       ├── vector_store.py           # FAISS index management
-│       └── requirements.txt          # Python dependencies
+│   ├── services/                      # Business logic layer
+│   │   ├── __init__.py
+│   │   ├── pdf_parser.py              # PyMuPDF text extraction + bounding-box search
+│   │   ├── chunker.py                 # Overlapping token-windowed text splitting
+│   │   ├── embedder.py                # sentence-transformers wrapper (lazy load + batch)
+│   │   ├── vector_store.py            # FAISS index management (with numpy fallback)
+│   │   ├── search.py                  # Semantic search orchestration
+│   │   ├── documents.py               # Document lifecycle + ingestion pipeline
+│   │   └── highlights.py              # Highlight CRUD
+│   │
+│   └── static/                        # Frontend static files (served by FastAPI)
+│       ├── index.html                 # App shell — layout, search panel, PDF viewer
+│       ├── css/
+│       │   └── app.css                # Cozy design system — warm colors, rounded corners
+│       ├── js/
+│       │   └── app.js                 # UI logic, API calls, PDF.js integration, state
+│       └── img/
+│           └── qg-favicon.svg         # QG logo used as favicon and launcher icon
 │
 ├── tests/
-│   ├── QuickGuide.Tests/             # C# xUnit test project
-│   │   ├── QuickGuide.Tests.csproj
-│   │   ├── PdfParserServiceTests.cs
-│   │   ├── TextChunkerServiceTests.cs
-│   │   └── SearchServiceTests.cs
-│   └── python_worker/                # Python tests
-│       ├── test_embedder.py
-│       └── test_vector_store.py
+│   ├── __init__.py
+│   ├── test_chunker.py                # Unit tests for text chunking logic
+│   └── test_database.py              # Unit tests for SQLite schema and cascade deletes
 │
 ├── data/                             # Created at runtime (gitignored)
 │   ├── qg.db                         # SQLite database
 │   ├── pdfs/                         # User's uploaded PDF files
-│   └── vectors/                      # FAISS index files per document
+│   ├── vectors/                      # FAISS index files per document
+│   └── models/                       # Cached sentence-transformers model (~80 MB)
 │
 ├── qg.bat                            # Windows launcher (double-click to start)
 ├── qg.sh                             # macOS/Linux launcher
-├── QuickGuide.sln                    # .NET solution file
+├── requirements.txt                  # Python package dependencies
 ├── README.md                         # Project overview + quickstart
-├── QUICKSTART.md                     # Detailed setup instructions
+├── QUICKSTART.md                     # Detailed setup instructions + troubleshooting
 ├── LICENSE                           # MIT License
-├── .gitignore                        # Ignores data/, bin/, obj/, .venv/, etc.
-└── .editorconfig                     # Consistent code style
+├── .gitignore                        # Ignores data/, __pycache__/, .venv/, etc.
+└── .editorconfig                     # Consistent code style across editors
 ```
 
 ## 2 PDF Storage Location
@@ -97,24 +82,22 @@ Quick_Guide/
 
 | Element | Convention | Example |
 |---|---|---|
-| C# files | PascalCase | `PdfParserService.cs` |
-| C# classes | PascalCase | `DocumentService` |
-| C# methods | PascalCase | `ExtractText()` |
-| C# properties | PascalCase | `PageNumber` |
-| Python modules | snake_case | `vector_store.py` |
-| Python functions | snake_case | `generate_embeddings()` |
+| Python modules | snake_case | `pdf_parser.py` |
+| Python functions | snake_case | `extract_text()` |
+| Python classes | PascalCase | `VectorStore` |
+| Pydantic models | PascalCase | `SearchRequest` |
 | API routes | kebab-case paths | `/api/documents/upload` |
 | DB tables | snake_case | `text_chunks` |
-| JS functions | camelCase | `loadPdf()` |
+| JS functions | camelCase | `loadDocuments()` |
 | CSS classes | BEM-like `qg-` prefix | `qg-search-input` |
 
 ## 4 Key Directories Explained
 
 | Directory | Purpose | Gitignored? |
 |---|---|---|
-| `src/QuickGuide.Api/` | All C# backend code | No |
-| `src/python_worker/` | Python ML worker (embedding + vector search) | No |
-| `src/QuickGuide.Api/wwwroot/` | Static frontend (HTML/CSS/JS) served by C# | No |
-| `data/` | Runtime data (DB, PDFs, FAISS indexes) | **Yes** |
-| `tests/` | All automated tests (C# + Python) | No |
+| `src/` | All Python backend source code | No |
+| `src/services/` | Modular business logic (parsing, embedding, search, highlights) | No |
+| `src/static/` | Static frontend (HTML/CSS/JS) served by FastAPI | No |
+| `data/` | Runtime data (DB, PDFs, FAISS indexes, model cache) | **Yes** |
+| `tests/` | Automated Python unit tests | No |
 | `docs/` | Planning and reference documents | No |

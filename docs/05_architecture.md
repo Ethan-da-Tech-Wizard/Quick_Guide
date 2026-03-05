@@ -1,6 +1,6 @@
 # QuickGuide (QG) — Architecture Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-03-05
 
 ---
@@ -12,24 +12,22 @@ graph TB
     subgraph UserDevice["User's Device"]
         Browser["Web Browser<br/>(any platform)"]
 
-        subgraph CSharpBackend["C# Backend — ASP.NET Core 8"]
-            API["REST API<br/>(Minimal API)"]
-            PdfSvc["PDF Parser<br/>(PdfPig)"]
+        subgraph PythonBackend["Python Backend — FastAPI"]
+            API["REST API<br/>(FastAPI routes)"]
+            PdfSvc["PDF Parser<br/>(PyMuPDF / fitz)"]
             ChunkSvc["Text Chunker"]
             DocMgr["Document Manager"]
             HighlightSvc["Highlight Service"]
-            DbSvc["Database Service<br/>(SQLite + Dapper)"]
-        end
-
-        subgraph PythonWorker["Python ML Worker — Flask"]
             EmbedSvc["Embedding Service<br/>(sentence-transformers)"]
-            VectorSvc["Vector Search<br/>(FAISS)"]
+            VectorSvc["Vector Search<br/>(FAISS / numpy)"]
+            DbSvc["Database Service<br/>(SQLite)"]
         end
 
         subgraph DataLayer["Data Layer"]
             SQLite["SQLite DB<br/>(qg.db)"]
             VectorIdx["FAISS Index Files<br/>(data/vectors/)"]
             FileStore["PDF File Store<br/>(data/pdfs/)"]
+            ModelCache["Model Cache<br/>(data/models/)"]
         end
 
         subgraph Frontend["Static Frontend"]
@@ -44,10 +42,9 @@ graph TB
     API --> ChunkSvc
     API --> DocMgr
     API --> HighlightSvc
+    API --> EmbedSvc
+    API --> VectorSvc
     API --> DbSvc
-
-    API -- "HTTP localhost:5001" --> EmbedSvc
-    API -- "HTTP localhost:5001" --> VectorSvc
 
     PdfSvc --> FileStore
     ChunkSvc --> DbSvc
@@ -56,7 +53,7 @@ graph TB
     DocMgr --> SQLite
     HighlightSvc --> SQLite
 
-    EmbedSvc --> VectorIdx
+    EmbedSvc --> ModelCache
     VectorSvc --> VectorIdx
 ```
 
@@ -66,28 +63,26 @@ graph TB
 
 ```mermaid
 flowchart LR
-    A["User selects PDF"] --> B["C#: Copy to<br/>data/pdfs/"]
-    B --> C["C#: Extract text<br/>(PdfPig, per page)"]
-    C --> D["C#: Chunk text<br/>(512 tok / 50 overlap)"]
-    D --> E["C# → Python:<br/>POST /embed"]
-    E --> F["Python: Generate<br/>embeddings<br/>(sentence-transformers)"]
-    F --> G["Python: Add to<br/>FAISS index"]
-    G --> H["C#: Store metadata<br/>in SQLite"]
-    H --> I["Ready for Search ✓"]
+    A["User selects PDF"] --> B["FastAPI: Copy to<br/>data/pdfs/"]
+    B --> C["PyMuPDF: Extract text<br/>(per page, with char offsets)"]
+    C --> D["Chunker: Split text<br/>(512 tok / 50 overlap)"]
+    D --> E["sentence-transformers:<br/>Generate embeddings<br/>(batch=32)"]
+    E --> F["FAISS: Add vectors<br/>to per-document index"]
+    F --> G["SQLite: Store metadata,<br/>chunks + status = ready"]
+    G --> H["Ready for Search ✓"]
 ```
 
 ### 2.2 Search Flow
 
 ```mermaid
 flowchart LR
-    A["User types query"] --> B["C# API receives<br/>search request"]
-    B --> C["C# → Python:<br/>POST /search"]
-    C --> D["Python: Embed query<br/>(sentence-transformers)"]
-    D --> E["Python: FAISS ANN<br/>search (cosine sim)"]
-    E --> F["Python returns<br/>top-K chunk IDs + scores"]
-    F --> G["C#: Fetch chunk text<br/>from SQLite"]
-    G --> H["C# returns JSON<br/>results to browser"]
-    H --> I["Browser: Navigate<br/>PDF.js + Highlight"]
+    A["User types query"] --> B["FastAPI API receives<br/>search request"]
+    B --> C["sentence-transformers:<br/>Embed query (384-dim)"]
+    C --> D["FAISS (or numpy):<br/>ANN search (cosine sim)"]
+    D --> E["Filter results:<br/>similarity ≥ 0.30"]
+    E --> F["SQLite: Fetch<br/>chunk text + page numbers"]
+    F --> G["FastAPI returns<br/>JSON results to browser"]
+    G --> H["Browser: Navigate<br/>PDF.js + Highlight"]
 ```
 
 ### 2.3 Navigation & Highlighting Flow
@@ -104,46 +99,41 @@ flowchart LR
 
 ## 3 Component Breakdown
 
-### 3.1 C# Backend (ASP.NET Core 8 Minimal API)
+### 3.1 Python Backend (FastAPI — single process, port 8080)
 
 | File | Responsibility |
 |---|---|
-| `Program.cs` | App entry point, DI registration, route mapping, static file serving |
-| `Services/PdfParserService.cs` | PdfPig text extraction — extracts text per page with character positions |
-| `Services/TextChunkerService.cs` | Splits page text into overlapping token-windowed chunks |
-| `Services/DocumentService.cs` | Document lifecycle: upload, list, delete, status tracking |
-| `Services/SearchService.cs` | Orchestrates search: calls Python worker, merges with SQLite metadata |
-| `Services/HighlightService.cs` | Highlight CRUD: create, read, update color, delete |
-| `Services/PythonBridgeService.cs` | HTTP client that communicates with the Python ML worker |
-| `Data/DatabaseService.cs` | SQLite connection, migrations, Dapper queries |
-| `Models/` | C# record types for API requests/responses and DB entities |
+| `src/main.py` | App entry point, FastAPI routes, static file serving, browser auto-launch |
+| `src/config.py` | All configuration: paths, server settings, model params, search thresholds |
+| `src/models.py` | Pydantic request/response models (SearchRequest, HighlightCreate, etc.) |
+| `src/database.py` | SQLite connection (thread-local, WAL mode), schema init, CRUD queries |
+| `src/services/pdf_parser.py` | PyMuPDF text extraction per page; bounding-box search for highlighting |
+| `src/services/chunker.py` | Splits page text into overlapping 512-token windows with 50-token overlap |
+| `src/services/embedder.py` | Lazy-loads `all-MiniLM-L6-v2`; batch encodes text; normalizes to float32 |
+| `src/services/vector_store.py` | Per-document FAISS index (or numpy fallback); add, search, save, load, delete |
+| `src/services/search.py` | Semantic search orchestration: embed → vector search → filter → enrich |
+| `src/services/documents.py` | Document lifecycle: upload, ingest pipeline, list, get, delete, progress tracking |
+| `src/services/highlights.py` | Highlight CRUD: add, get, update color, delete |
 
-### 3.2 Python ML Worker (Flask)
-
-| File | Responsibility |
-|---|---|
-| `worker.py` | Flask app: `/embed`, `/search`, `/health` endpoints |
-| `embedder.py` | Loads `all-MiniLM-L6-v2`, generates 384-dim embeddings |
-| `vector_store.py` | FAISS index management: add vectors, search, save/load, delete |
-
-### 3.3 Frontend (HTML / CSS / Vanilla JS)
+### 3.2 Frontend (HTML / CSS / Vanilla JS)
 
 | File | Responsibility |
 |---|---|
-| `index.html` | App shell — layout, PDF viewer container, search panel |
-| `css/app.css` | Cozy design system — warm colors, rounded corners, soft shadows |
-| `js/app.js` | API calls, search orchestration, state management, document selector |
-| `js/pdfviewer.js` | PDF.js rendering, page navigation, text-layer highlight overlays, match jumping |
+| `src/static/index.html` | App shell — layout, PDF viewer container, search panel, highlights tab |
+| `src/static/css/app.css` | Cozy design system — warm colors, rounded corners, soft shadows |
+| `src/static/js/app.js` | API calls, search orchestration, PDF.js integration, state management, highlights |
+| `src/static/img/qg-favicon.svg` | QG logo used as favicon and launcher icon |
 
-### 3.4 Data Layer
+### 3.3 Data Layer
 
 | Store | Technology | Contents |
 |---|---|---|
-| `data/qg.db` | SQLite | Documents, text chunks, highlights, settings |
-| `data/vectors/` | FAISS index files | Embedding vectors per document (`.faiss` + `.map`) |
+| `data/qg.db` | SQLite | Documents, text chunks, highlights |
+| `data/vectors/` | FAISS index files | Embedding vectors per document (`.faiss` + `.map`, or `.npy` fallback) |
 | `data/pdfs/` | File system | Original PDF files copied from user selections |
+| `data/models/` | File system cache | Downloaded `all-MiniLM-L6-v2` model (~80 MB, cached after first run) |
 
-## 4 API Endpoints (C# Backend — port 8080)
+## 4 API Endpoints (FastAPI Backend — port 8080)
 
 | Method | Path | Description |
 |---|---|---|
@@ -152,51 +142,25 @@ flowchart LR
 | `GET` | `/api/documents` | List all documents |
 | `GET` | `/api/documents/{id}` | Get document details |
 | `GET` | `/api/documents/{id}/status` | Get ingestion progress |
-| `DELETE` | `/api/documents/{id}` | Delete document + data |
+| `DELETE` | `/api/documents/{id}` | Delete document + all associated data |
 | `GET` | `/api/documents/{id}/pdf` | Serve PDF file for viewer |
-| `POST` | `/api/search` | Semantic search (proxies to Python) |
-| `POST` | `/api/highlights` | Add a highlight |
-| `GET` | `/api/documents/{id}/highlights` | Get highlights for a document |
+| `GET` | `/api/documents/{id}/text-positions` | Search text on a page; returns bounding-box rects for precise highlighting |
+| `POST` | `/api/search` | Semantic search (embed + FAISS + SQLite enrichment) |
+| `POST` | `/api/highlights` | Add a highlight annotation |
+| `GET` | `/api/documents/{id}/highlights` | Get highlights for a document (optional `?page=N` filter) |
 | `PUT` | `/api/highlights/{id}` | Update highlight color |
 | `DELETE` | `/api/highlights/{id}` | Delete a highlight |
 
-## 5 Python Worker API (port 5001)
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Health check + model status |
-| `POST` | `/embed` | Generate embeddings for text chunks |
-| `POST` | `/search` | Embed query + FAISS search → return chunk IDs + scores |
-| `POST` | `/index/add` | Add vectors to a document's FAISS index |
-| `POST` | `/index/delete` | Delete a document's FAISS index |
-
-## 6 Inter-Process Communication
-
-```
-┌─────────────────────────────────┐     HTTP (localhost:5001)     ┌───────────────────────────┐
-│  C# Backend (ASP.NET Core)     │ ──────────────────────────► │  Python Worker (Flask)     │
-│  Port 8080                      │ ◄────────────────────────── │  Port 5001                │
-│                                 │         JSON payloads        │                           │
-│  • PDF parsing (PdfPig)         │                              │  • sentence-transformers  │
-│  • Text chunking                │                              │  • FAISS index management │
-│  • SQLite database              │                              │                           │
-│  • File management              │                              │                           │
-│  • Static file serving          │                              │                           │
-└─────────────────────────────────┘                              └───────────────────────────┘
-```
-
-The C# backend **launches the Python worker** as a subprocess on startup and shuts it down on exit. Communication uses simple HTTP/JSON on localhost — no sockets, no message queues.
-
-## 7 Key Design Decisions
+## 5 Key Design Decisions
 
 | Decision | Rationale |
 |---|---|
-| **C# primary, Python secondary** | User requested C# for speed; Python only for ML tasks that lack C# equivalents |
-| **ASP.NET Core Minimal API** | Less boilerplate than controllers; fast startup; built-in DI |
-| **PdfPig over iTextSharp** | Pure C#, MIT licensed, good text extraction, no Java dependency |
-| **Separate Python process** | Clean separation of concerns; C# backend stays fast; Python handles ML |
-| **Flask over FastAPI (worker)** | Simpler for a small internal service; no async needed for batch embedding |
-| **FAISS over custom ANN** | Battle-tested, optimized C++ core, excellent Python bindings |
+| **Python single-process** | All logic — PDF parsing, API, database, embeddings, vector search — runs in one FastAPI process; no inter-process complexity |
+| **FastAPI over Flask** | Async-native, built-in Pydantic validation, automatic OpenAPI docs, faster than Flask |
+| **PyMuPDF over PdfPig** | Python-native, fast C++ core, returns character-level positions needed for highlight overlays |
+| **sentence-transformers in-process** | Direct function calls instead of HTTP round-trips; simpler, lower latency |
+| **FAISS over custom ANN** | Battle-tested, optimized C++ core, excellent Python bindings; numpy fallback ensures compatibility |
 | **SQLite over Postgres** | Zero install; single-file DB; perfect for local-first app |
 | **PDF.js over native viewer** | Works in every browser; supports text-layer highlighting |
 | **Vanilla JS over React** | Zero build step; served as static files; the app is simple enough |
+| **Thread-local SQLite connections** | Avoids connection sharing across threads; WAL mode allows concurrent reads during writes |
