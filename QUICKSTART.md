@@ -25,7 +25,7 @@ sudo apt install python3.11 python3.11-venv python3-pip
 
 ### Option A: Clone from GitHub
 ```bash
-git clone https://github.com/Ethan_da_Tech_Wizard/Quick_Guide.git
+git clone https://github.com/Ethan-da-Tech-Wizard/Quick_Guide.git
 cd Quick_Guide
 ```
 
