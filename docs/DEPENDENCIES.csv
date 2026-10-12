@@ -1,0 +1,9 @@
+ecosystem,name,requirement,version,scope,manifest,license,metadata_version,evidence,evidence_kind,resolution_note
+PyPI,fastapi,>=0.115.0,,direct,requirements.txt,MIT,0.143.0,https://pypi.org/pypi/fastapi/json,,
+PyPI,uvicorn,>=0.30.0,,direct,requirements.txt,BSD-3-Clause,0.54.0,https://pypi.org/pypi/uvicorn/json,,
+PyPI,python-multipart,>=0.0.9,,direct,requirements.txt,Apache-2.0,0.0.32,https://pypi.org/pypi/python-multipart/json,,
+PyPI,aiofiles,>=24.1.0,,direct,requirements.txt,Apache-2.0,25.1.0,https://pypi.org/pypi/aiofiles/json,,
+PyPI,PyMuPDF,>=1.24.0,,direct,requirements.txt,Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License,1.28.2,https://pypi.org/pypi/PyMuPDF/json,,
+PyPI,sentence-transformers,>=3.0.0,,direct,requirements.txt,Apache-2.0,6.1.0,https://pypi.org/pypi/sentence-transformers/json,,
+PyPI,faiss-cpu,>=1.8.0,,direct,requirements.txt,MIT,1.15.1,https://pypi.org/pypi/faiss-cpu/json,,
+PyPI,numpy,">=1.26.0,<2.0.0",,direct,requirements.txt,BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0,2.5.4,https://pypi.org/pypi/numpy/json,,
