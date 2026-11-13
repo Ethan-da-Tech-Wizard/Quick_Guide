@@ -1,8 +1,8 @@
 # QuickGuide (QG) 📖🔍
 
-**Upload a PDF. Ask a question. Get taken straight to the answer — highlighted and ready to read.**
+**Explore PDF search, page navigation, and highlighting. Results should be checked against the original document.**
 
-QuickGuide is a local-first PDF search and navigation tool. It uses **semantic search** (AI-powered vector embeddings) to understand your questions and find the right answers inside large PDF documents. All processing happens on your own device — no cloud, no internet required for core features.
+QuickGuide is a local-first PDF search prototype that uses semantic-search techniques. Retrieval quality, network behavior, and offline operation have not been independently verified across configurations; setup may download dependencies and models.
 
 ---
 
@@ -13,8 +13,8 @@ QuickGuide is a local-first PDF search and navigation tool. It uses **semantic s
 - **🖍️ Smart Highlighting** — Matching phrases are highlighted in your chosen color (yellow default)
 - **◀ ▶ Multi-Match Jumping** — Navigate between all highlighted sections with one click
 - **🎨 Color Customization** — Change highlight colors with a picker or preset swatches
-- **📱 Cross-Platform** — Works on Windows, macOS, Linux, and mobile browsers
-- **🔒 100% Local** — Your documents never leave your device
+- **📱 Cross-platform design** — Windows and Unix launchers are included; platform and browser compatibility have not been independently verified.
+- **🔒 Local-first design** — The project is designed for local processing; privacy and network behavior require verification for the configuration used.
 
 ## 🚀 Quick Start
 
