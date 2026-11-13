@@ -1,34 +1,25 @@
 # QuickGuide
 
-Local semantic PDF search with embedding-based retrieval, page navigation, and highlighted answers.
+QuickGuide is a local PDF search prototype with a Python API and browser interface. Its code includes document upload, semantic search, page navigation, and text-position endpoints for highlighting.
 
-**Status:** Document-search prototype  
-**Built with:** Python, local embeddings, browser UI
+**Status:** Prototype. Current setup and search quality have not been independently verified in this review; check results against the original document.
 
-[Project guide](docs/PROJECT_GUIDE.md) · [Every file explained](docs/FILE_GUIDE.md) · [Licenses and dependencies](docs/LICENSE_REVIEW.md)
+## Start the project
 
-## Start here
+Review [requirements.txt](requirements.txt) and the platform launcher before running it. The repository's Unix launcher creates a virtual environment, installs Python dependencies, and starts the application:
 
-- [requirements.txt](requirements.txt) — Python dependency requirements and optional dependency groups; install with the project’s documented interpreter and environment.
-- [src/main.py](src/main.py) — QuickGuide (QG) — FastAPI Application Defines `lifespan`, `serve_frontend`, `upload_document`, `list_documents`, `get_document`, `get_document_status` and 8 more top-level symbols.
-- [qg.sh](qg.sh) — Command-line automation for qg; review prerequisites and side effects before executing.
-- [qg.bat](qg.bat) — Command-line automation for qg; review prerequisites and side effects before executing.
+```sh
+./qg.sh
+```
 
-[Detailed setup, usage, and development notes](PROJECT_NOTES.md) preserve the previous project documentation.
+The launcher directs the browser to `http://127.0.0.1:8080`. The application source also documents running `python main.py` from `src/` after dependencies are installed. A [Windows launcher](qg.bat) is included. Local model files may need to be downloaded; PDFs remain user-supplied inputs. These instructions are derived from source and were not run in this review.
 
-## Repository layout
+## Explore
 
-| Path | Role |
-| --- | --- |
-| [.github/](.github/) | GitHub workflow and contributor configuration (1 tracked entries). |
-| [docs/](docs/) | Project documentation, decisions, and reference material (13 tracked entries). |
-| [src/](src/) | Application source and platform integration (16 tracked entries). |
-| [tests/](tests/) | Automated checks and test fixtures (3 tracked entries). |
-
-## Scope and current limits
-
-Models and source PDFs are separate downloads or local inputs. PyMuPDF and other PDF/ML dependencies retain their own licensing terms.
+- [Application and API](src/main.py)
+- [Detailed setup and usage notes](PROJECT_NOTES.md)
+- [Project guide](docs/PROJECT_GUIDE.md) · [License review](docs/LICENSE_REVIEW.md)
 
 ## License
 
-Original project code retains **MIT** terms in [LICENSE](LICENSE). Third-party libraries, media, data, models, and tools retain their own terms. See the [license review](docs/LICENSE_REVIEW.md) and [dependency inventory](docs/DEPENDENCIES.csv).
+Project code is distributed under the [MIT License](LICENSE). PDF, model, and other dependencies have separate terms; consult the [license review](docs/LICENSE_REVIEW.md) and [dependency inventory](docs/DEPENDENCIES.csv).
