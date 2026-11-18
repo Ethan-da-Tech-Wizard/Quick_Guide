@@ -1,10 +1,13 @@
-"""
-QuickGuide (QG) — FastAPI Application
-
-Local PDF search and navigation tool.
-Run:  python main.py
-  or: uvicorn main:app --host 127.0.0.1 --port 8080
-"""
+# ==============================================================================
+# Program: main.py
+# Programmer: Ethan-da-Tech-Wizard
+# Last Modified: November 18, 2026
+# Purpose: Main FastAPI application server for QuickGuide.
+#          Coordinates RESTful API endpoints for PDF document uploading,
+#          status tracking, deletion, vector-powered semantic search, precise
+#          bounding-box text location queries, highlight CRUD, and serves
+#          static web assets for the browser interface.
+# ==============================================================================
 
 import os
 import sys
@@ -26,8 +29,7 @@ from services import search as search_service
 from services import highlights as highlight_service
 from services import pdf_parser
 
-
-# ── Logging ──────────────────────────────────────
+# ── Logging Configuration ─────────────────────────────────────────────────────
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,16 +38,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger("quickguide")
 
-
-# ── Lifespan ─────────────────────────────────────
+# ── Application Lifespan ──────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """
+    Lifespan context manager to handle application startup and teardown tasks.
+    Initializes database schema prior to receiving client requests.
+    """
+    # Step 1: Run database migrations / table creation
     init_db()
     logger.info("Database initialized.")
     yield
-
+    # Step 2: Perform any required teardown on server shutdown
 
 app = FastAPI(
     title="QuickGuide",
@@ -54,31 +59,33 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-# ── Static files ─────────────────────────────────
+# ── Static File Assets ────────────────────────────────────────────────────────
 
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-
-# ── Frontend ─────────────────────────────────────
+# ── Frontend Route ────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
-    """Serve the main HTML page."""
+    """Serves the primary single-page application HTML document."""
     index_path = STATIC_DIR / "index.html"
     return FileResponse(str(index_path), media_type="text/html")
 
-
-# ── Document API ─────────────────────────────────
+# ── Document Lifecycle API Endpoints ──────────────────────────────────────────
 
 @app.post("/api/documents/upload")
 async def upload_document(file: UploadFile = File(...)):
-    """Upload and ingest a PDF document."""
+    """
+    Handles file upload, validates PDF extension, and delegates to the
+    ingestion pipeline (extraction, chunking, embedding, indexing).
+    """
+    # Step 1: Validate file format
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Only PDF files are accepted.")
 
     try:
+        # Step 2: Read binary contents and trigger ingestion
         content = await file.read()
         doc = doc_service.upload_and_ingest(file.filename, content)
         return doc
@@ -88,43 +95,38 @@ async def upload_document(file: UploadFile = File(...)):
         logger.error(f"Upload failed: {e}")
         raise HTTPException(500, f"Upload failed: {str(e)}")
 
-
 @app.get("/api/documents")
 async def list_documents():
-    """List all uploaded documents."""
+    """Returns a list of all documents stored in the database."""
     return doc_service.list_documents()
-
 
 @app.get("/api/documents/{document_id}")
 async def get_document(document_id: int):
-    """Get a specific document."""
+    """Retrieves document record metadata by document ID."""
     doc = doc_service.get_document(document_id)
     if not doc:
         raise HTTPException(404, "Document not found")
     return doc
 
-
 @app.get("/api/documents/{document_id}/status")
 async def get_document_status(document_id: int):
-    """Get the ingestion status of a document."""
+    """Retrieves the current ingestion progress and stage for a document."""
     doc = doc_service.get_document(document_id)
     if not doc:
         raise HTTPException(404, "Document not found")
     progress = doc_service.get_progress(document_id)
     return progress
 
-
 @app.delete("/api/documents/{document_id}")
 async def delete_document(document_id: int):
-    """Delete a document and all associated data."""
+    """Purges a document, its PDF file, vectors, and database records."""
     if not doc_service.delete_document(document_id):
         raise HTTPException(404, "Document not found")
     return {"status": "deleted"}
 
-
 @app.get("/api/documents/{document_id}/pdf")
 async def serve_pdf(document_id: int):
-    """Serve the PDF file for the viewer."""
+    """Streams the raw PDF file for rendering in the PDF.js client viewer."""
     pdf_path = doc_service.get_pdf_path(document_id)
     if not pdf_path:
         raise HTTPException(404, "PDF file not found")
@@ -134,25 +136,27 @@ async def serve_pdf(document_id: int):
         headers={"Content-Disposition": f"inline; filename=\"{pdf_path.name}\""}
     )
 
-
-# ── Search API ───────────────────────────────────
+# ── Semantic Search API Endpoints ─────────────────────────────────────────────
 
 @app.post("/api/search")
 async def search(request: SearchRequest):
-    """Perform semantic search on a document."""
+    """
+    Executes semantic query search over chunk vectors for a given document.
+    """
+    # Step 1: Verify document existence and ready state
     doc = doc_service.get_document(request.document_id)
     if not doc:
         raise HTTPException(404, "Document not found")
     if doc["status"] != "ready":
         raise HTTPException(400, "Document is still being processed. Please wait.")
 
+    # Step 2: Execute vector embedding search and return scored chunk hits
     results = search_service.semantic_search(
         request.document_id, request.query, request.top_k
     )
     return {"results": results, "total": len(results)}
 
-
-# ── Text Position Search (for precise highlighting) ──
+# ── Text Position Search ──────────────────────────────────────────────────────
 
 @app.get("/api/documents/{document_id}/text-positions")
 async def search_text_positions(
@@ -161,8 +165,8 @@ async def search_text_positions(
     q: str = Query(..., min_length=1),
 ):
     """
-    Search for text on a specific page and return bounding-box rectangles.
-    Used by the frontend to highlight exact text positions.
+    Searches for text on a specific PDF page and returns bounding-box rectangles
+    for client-side visual highlighting overlays.
     """
     pdf_path = doc_service.get_pdf_path(document_id)
     if not pdf_path:
@@ -171,12 +175,11 @@ async def search_text_positions(
     rects = pdf_parser.search_text_on_page(pdf_path, page, q)
     return {"rects": rects, "page": page, "query": q}
 
-
-# ── Highlights API ───────────────────────────────
+# ── Highlights API Endpoints ──────────────────────────────────────────────────
 
 @app.post("/api/highlights")
 async def add_highlight(data: HighlightCreate):
-    """Add a highlight annotation."""
+    """Stores a user-created text highlight annotation."""
     doc = doc_service.get_document(data.document_id)
     if not doc:
         raise HTTPException(404, "Document not found")
@@ -185,31 +188,27 @@ async def add_highlight(data: HighlightCreate):
     )
     return highlight
 
-
 @app.get("/api/documents/{document_id}/highlights")
 async def get_highlights(document_id: int, page: int | None = None):
-    """Get highlights for a document."""
+    """Retrieves saved highlights for a document, optionally filtered by page."""
     return highlight_service.get_highlights(document_id, page)
-
 
 @app.put("/api/highlights/{highlight_id}")
 async def update_highlight(highlight_id: int, data: HighlightUpdate):
-    """Update highlight color."""
+    """Updates the highlight color of an existing annotation."""
     highlight = highlight_service.update_highlight(highlight_id, data.color)
     if not highlight:
         raise HTTPException(404, "Highlight not found")
     return highlight
 
-
 @app.delete("/api/highlights/{highlight_id}")
 async def delete_highlight(highlight_id: int):
-    """Delete a highlight."""
+    """Removes a saved highlight annotation."""
     if not highlight_service.delete_highlight(highlight_id):
         raise HTTPException(404, "Highlight not found")
     return {"status": "deleted"}
 
-
-# ── Entry Point ──────────────────────────────────
+# ── CLI Entry Point ───────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print()
@@ -219,7 +218,7 @@ if __name__ == "__main__":
     print("=" * 50)
     print()
 
-    # Open browser automatically
+    # Automatically launch default browser to local web application
     webbrowser.open(f"http://{HOST}:{PORT}")
 
     uvicorn.run(

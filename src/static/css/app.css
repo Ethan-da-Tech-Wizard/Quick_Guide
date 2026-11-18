@@ -1,7 +1,12 @@
-/* ═══════════════════════════════════════════════
-   QuickGuide (QG) — Cozy Design System
-   Warm, inviting, layman-friendly UI
-   ═══════════════════════════════════════════════ */
+/* ==============================================================================
+ * Program: app.css
+ * Programmer: Ethan-da-Tech-Wizard
+ * Last Modified: November 18, 2026
+ * Purpose: Stylesheet design system for QuickGuide web client. Implements cozy
+ *          warm visual theme, responsive layout grids, custom scrollbars, PDF
+ *          canvas containers, bounding-box highlight overlays, toast alerts,
+ *          progress dialogs, and interactive search result cards.
+ * ============================================================================== */
 
 /* ── CSS Custom Properties ─────────────────── */
 :root {

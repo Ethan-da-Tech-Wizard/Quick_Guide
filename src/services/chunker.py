@@ -1,27 +1,33 @@
-"""
-QuickGuide (QG) — Text Chunker Service
-Splits extracted text into overlapping token-windowed chunks.
-"""
+# ==============================================================================
+# Program: chunker.py
+# Programmer: Ethan-da-Tech-Wizard
+# Last Modified: November 18, 2026
+# Purpose: Text chunking service for QuickGuide. Breaks full-page extracted text
+#          into sliding-window token segments with configurable token overlap.
+#          Tracks character offset boundaries (start_char, end_char) and 1-indexed
+#          page numbers for accurate UI citation and navigation.
+# ==============================================================================
 
 from typing import List, Dict
 from config import CHUNK_SIZE, CHUNK_OVERLAP
 
-
 def chunk_text(page_number: int, text: str) -> List[Dict]:
     """
-    Split page text into overlapping chunks.
+    Splits page text into overlapping token-windowed chunks.
 
     Args:
-        page_number: 1-indexed page number
-        text: Full text of the page
+        page_number (int): 1-indexed page number of the source text.
+        text (str): Full text extracted from the page.
 
     Returns:
-        List of chunk dicts with page_number, chunk_index, text_content,
-        start_char, end_char
+        List[Dict]: List of chunk dictionaries containing page_number,
+                    chunk_index, text_content, start_char, and end_char.
     """
+    # Step 1: Return empty list if input text is empty or whitespace
     if not text or not text.strip():
         return []
 
+    # Step 2: Split text into whitespace-delimited words
     words = text.split()
     if not words:
         return []
@@ -30,12 +36,13 @@ def chunk_text(page_number: int, text: str) -> List[Dict]:
     chunk_index = 0
     start = 0
 
+    # Step 3: Iterate through words using sliding window with overlap
     while start < len(words):
         end = min(start + CHUNK_SIZE, len(words))
         chunk_words = words[start:end]
         chunk_text = " ".join(chunk_words)
 
-        # Calculate character offsets in original text
+        # Step 4: Calculate precise character offsets within original text
         start_char = _find_word_offset(text, words, start)
         end_char = _find_word_offset(text, words, end - 1) + len(words[end - 1]) if end > 0 else len(text)
 
@@ -49,21 +56,30 @@ def chunk_text(page_number: int, text: str) -> List[Dict]:
 
         chunk_index += 1
 
-        # Move forward by (chunk_size - overlap)
+        # Step 5: Advance start pointer forward by (chunk_size - overlap)
         step = CHUNK_SIZE - CHUNK_OVERLAP
         if step <= 0:
             step = 1
         start += step
 
-        # Stop if we've already covered everything
+        # Step 6: Break loop if remaining words have been fully encompassed
         if end >= len(words):
             break
 
     return chunks
 
-
 def _find_word_offset(text: str, words: list, word_index: int) -> int:
-    """Find the character offset of the nth word in the original text."""
+    """
+    Finds the exact character offset of the nth word in the raw source text.
+
+    Args:
+        text (str): Source text string.
+        words (list): List of split words.
+        word_index (int): Index of target word.
+
+    Returns:
+        int: Character offset in string.
+    """
     if word_index <= 0:
         return 0
 
@@ -73,7 +89,7 @@ def _find_word_offset(text: str, words: list, word_index: int) -> int:
         if pos >= 0:
             offset = pos + len(words[i])
 
-    # Find the start of the target word
+    # Locate start index of target word
     if word_index < len(words):
         pos = text.find(words[word_index], offset)
         return pos if pos >= 0 else offset

@@ -1,13 +1,28 @@
-"""
-QuickGuide (QG) — Highlight Service
-CRUD operations for persistent highlights.
-"""
+# ==============================================================================
+# Program: highlights.py
+# Programmer: Ethan-da-Tech-Wizard
+# Last Modified: November 18, 2026
+# Purpose: Highlight annotation management service for QuickGuide.
+#          Executes persistent CRUD operations for user-selected text highlights,
+#          including database insertion, retrieval by document/page, color
+#          customization updates, and record deletions.
+# ==============================================================================
 
 from database import get_connection
 
-
 def add_highlight(document_id: int, page_number: int, text_content: str, color: str = "#FFE066") -> dict:
-    """Add a highlight annotation."""
+    """
+    Inserts a new highlight record into the relational database.
+
+    Args:
+        document_id (int): Target document identifier.
+        page_number (int): 1-indexed page containing highlighted selection.
+        text_content (str): Selected text string.
+        color (str): Hex color code for visual annotation.
+
+    Returns:
+        dict: Persisted highlight record dictionary.
+    """
     conn = get_connection()
     cursor = conn.execute(
         """INSERT INTO highlights (document_id, page_number, text_content, color)
@@ -17,9 +32,17 @@ def add_highlight(document_id: int, page_number: int, text_content: str, color: 
     conn.commit()
     return get_highlight(cursor.lastrowid)
 
-
 def get_highlights(document_id: int, page_number: int | None = None) -> list[dict]:
-    """Get highlights for a document, optionally filtered by page."""
+    """
+    Retrieves stored highlights for a document, optionally scoped to a single page.
+
+    Args:
+        document_id (int): Target document identifier.
+        page_number (int, optional): Specific page filter.
+
+    Returns:
+        list[dict]: List of highlight records.
+    """
     conn = get_connection()
     if page_number is not None:
         rows = conn.execute(
@@ -33,24 +56,46 @@ def get_highlights(document_id: int, page_number: int | None = None) -> list[dic
         ).fetchall()
     return [dict(r) for r in rows]
 
-
 def get_highlight(highlight_id: int) -> dict | None:
-    """Get a single highlight."""
+    """
+    Retrieves a single highlight record by its primary key.
+
+    Args:
+        highlight_id (int): Unique identifier of the highlight.
+
+    Returns:
+        dict | None: Highlight record dictionary or None if not found.
+    """
     conn = get_connection()
     row = conn.execute("SELECT * FROM highlights WHERE id = ?", (highlight_id,)).fetchone()
     return dict(row) if row else None
 
-
 def update_highlight(highlight_id: int, color: str) -> dict | None:
-    """Update highlight color."""
+    """
+    Modifies the annotation color for an existing highlight.
+
+    Args:
+        highlight_id (int): Unique identifier of the highlight.
+        color (str): New hex color string.
+
+    Returns:
+        dict | None: Updated highlight record dictionary or None if not found.
+    """
     conn = get_connection()
     conn.execute("UPDATE highlights SET color = ? WHERE id = ?", (color, highlight_id))
     conn.commit()
     return get_highlight(highlight_id)
 
-
 def delete_highlight(highlight_id: int) -> bool:
-    """Delete a highlight."""
+    """
+    Deletes a highlight annotation from the database.
+
+    Args:
+        highlight_id (int): Unique identifier of the highlight.
+
+    Returns:
+        bool: True if a row was deleted, False otherwise.
+    """
     conn = get_connection()
     cursor = conn.execute("DELETE FROM highlights WHERE id = ?", (highlight_id,))
     conn.commit()

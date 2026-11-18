@@ -1,7 +1,13 @@
-"""
-QuickGuide (QG) — Search Service
-Orchestrates semantic search: embed query → FAISS search → enrich results.
-"""
+# ==============================================================================
+# Program: search.py
+# Programmer: Ethan-da-Tech-Wizard
+# Last Modified: November 18, 2026
+# Purpose: Semantic search orchestration service for QuickGuide. Converts
+#          natural language user queries into vector embeddings, performs
+#          cosine similarity nearest-neighbor lookup in the document's FAISS
+#          vector store, filters by minimum threshold, and enriches search hits
+#          with chunk text content from SQLite.
+# ==============================================================================
 
 import logging
 from services import embedder
@@ -11,36 +17,36 @@ from config import MIN_SIMILARITY
 
 logger = logging.getLogger(__name__)
 
-
 def semantic_search(document_id: int, query: str, top_k: int = 10) -> list[dict]:
     """
-    Perform semantic search on a document.
+    Executes semantic vector search against indexed document chunks.
 
     Args:
-        document_id: The document to search
-        query: Natural-language query string
-        top_k: Number of results to return
+        document_id (int): Target document identifier.
+        query (str): Natural language search query.
+        top_k (int): Number of top results to return.
 
     Returns:
-        List of result dicts with chunk_id, page_number, text_content, score, snippet
+        list[dict]: Scored result dictionaries containing chunk_id, page_number,
+                    text_content, score, and snippet preview.
     """
-    # 1. Embed the query
+    # Step 1: Compute query embedding vector
     query_vector = embedder.embed_query(query)
 
-    # 2. Search the vector store
+    # Step 2: Query FAISS nearest-neighbor index
     store = get_store(document_id)
     raw_results = store.search(query_vector, top_k=top_k)
 
     if not raw_results:
         return []
 
-    # 3. Filter by minimum similarity
+    # Step 3: Filter results by minimum cosine similarity threshold
     filtered = [(cid, score) for cid, score in raw_results if score >= MIN_SIMILARITY]
 
     if not filtered:
         return []
 
-    # 4. Fetch chunk text from SQLite
+    # Step 4: Batch fetch text chunk records from SQLite
     conn = get_connection()
     chunk_ids = [cid for cid, _ in filtered]
     placeholders = ",".join("?" * len(chunk_ids))
@@ -52,7 +58,7 @@ def semantic_search(document_id: int, query: str, top_k: int = 10) -> list[dict]
 
     chunk_map = {row["id"]: dict(row) for row in rows}
 
-    # 5. Build results
+    # Step 5: Format response payload with formatted snippets and scores
     results = []
     for chunk_id, score in filtered:
         chunk = chunk_map.get(chunk_id)

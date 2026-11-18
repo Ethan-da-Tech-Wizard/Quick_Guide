@@ -1,6 +1,11 @@
-"""
-QuickGuide — Database Tests
-"""
+# ==============================================================================
+# Program: test_database.py
+# Programmer: Ethan-da-Tech-Wizard
+# Last Modified: November 18, 2026
+# Purpose: Unit tests for QuickGuide SQLite schema and relational operations.
+#          Validates table creation, index initialization, insert/query integrity,
+#          and foreign key cascading deletion behavior.
+# ==============================================================================
 
 import sys
 import os
@@ -10,15 +15,15 @@ import tempfile
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-
 def test_database_schema():
-    """Test that database schema creates all required tables."""
-    # Create a temp database
+    """Test that database schema initializes all required tables and indexes."""
+    # Create an isolated temporary database file
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
 
     try:
         conn = sqlite3.connect(db_path)
+        # Initialize schema
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS documents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,14 +58,14 @@ def test_database_schema():
         """)
         conn.commit()
 
-        # Verify tables exist
+        # Step 1: Verify tables exist
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
         assert "documents" in tables
         assert "text_chunks" in tables
         assert "highlights" in tables
 
-        # Verify we can insert and query
+        # Step 2: Verify insert and retrieval operations
         conn.execute(
             "INSERT INTO documents (filename, file_path, status) VALUES (?, ?, ?)",
             ("test.pdf", "/tmp/test.pdf", "ready")
@@ -75,9 +80,8 @@ def test_database_schema():
     finally:
         os.unlink(db_path)
 
-
 def test_cascade_delete():
-    """Test that deleting a document cascades to chunks and highlights."""
+    """Test that deleting a document cascades deletion to chunks and highlights."""
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
 
@@ -109,21 +113,21 @@ def test_cascade_delete():
             );
         """)
 
-        # Insert document and related data
+        # Step 1: Insert parent document and child chunk/highlight records
         conn.execute("INSERT INTO documents (id, filename, file_path) VALUES (1, 'test.pdf', '/tmp/test.pdf')")
         conn.execute("INSERT INTO text_chunks (document_id, text_content) VALUES (1, 'Hello world')")
         conn.execute("INSERT INTO highlights (document_id, text_content) VALUES (1, 'Hello')")
         conn.commit()
 
-        # Verify data exists
+        # Step 2: Verify records are present
         assert conn.execute("SELECT COUNT(*) FROM text_chunks").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM highlights").fetchone()[0] == 1
 
-        # Delete document
+        # Step 3: Delete parent document
         conn.execute("DELETE FROM documents WHERE id = 1")
         conn.commit()
 
-        # Verify cascaded delete
+        # Step 4: Verify cascaded deletion eliminated children
         assert conn.execute("SELECT COUNT(*) FROM text_chunks").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM highlights").fetchone()[0] == 0
 

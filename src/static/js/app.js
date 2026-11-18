@@ -1,9 +1,13 @@
-/**
- * QuickGuide (QG) — Main Application JavaScript
- *
- * Handles: document management, search, PDF.js rendering,
- * multi-match navigation, and highlight color customization.
- */
+// ==============================================================================
+// Program: app.js
+// Programmer: Ethan-da-Tech-Wizard
+// Last Modified: November 18, 2026
+// Purpose: Primary client-side application logic for QuickGuide web UI.
+//          Coordinates dynamic PDF.js document rendering with continuous lazy-scroll,
+//          manages asynchronous API communication for document uploads and semantic
+//          searches, renders bounding-box highlight overlays, handles multi-match
+//          keyboard/button navigation, and persists custom text highlights.
+// ==============================================================================
 
 // ── PDF.js Setup ────────────────────────────────
 const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');

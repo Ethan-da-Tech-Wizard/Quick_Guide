@@ -1,6 +1,11 @@
-"""
-QuickGuide — Text Chunker Tests
-"""
+# ==============================================================================
+# Program: test_chunker.py
+# Programmer: Ethan-da-Tech-Wizard
+# Last Modified: November 18, 2026
+# Purpose: Unit tests for QuickGuide text chunker service. Verifies token windowing,
+#          empty text handling, single-chunk short strings, token overlap correctness,
+#          preservation of page numbers, and sequential indexing.
+# ==============================================================================
 
 import sys
 import os
@@ -10,9 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from services.chunker import chunk_text
 
-
 def test_chunk_text_basic():
-    """Test basic text chunking produces results."""
+    """Test basic text chunking produces valid non-empty results."""
     text = " ".join(f"word{i}" for i in range(100))
     chunks = chunk_text(1, text)
     assert len(chunks) > 0
@@ -20,24 +24,21 @@ def test_chunk_text_basic():
     assert chunks[0]["chunk_index"] == 0
     assert len(chunks[0]["text_content"]) > 0
 
-
 def test_chunk_text_empty():
     """Test empty text produces no chunks."""
     assert chunk_text(1, "") == []
     assert chunk_text(1, "   ") == []
 
-
 def test_chunk_text_short():
-    """Test short text produces one chunk."""
+    """Test short text within token window produces exactly one chunk."""
     text = "This is a short text."
     chunks = chunk_text(1, text)
     assert len(chunks) == 1
     assert chunks[0]["text_content"] == text
 
-
 def test_chunk_text_overlap():
-    """Test that chunks have overlap."""
-    # Create text with exactly 600 words to ensure we get multiple chunks
+    """Test that consecutive chunks share overlapping words."""
+    # Create text with 600 words to ensure multiple chunk boundaries
     text = " ".join(f"word{i}" for i in range(600))
     chunks = chunk_text(1, text)
     assert len(chunks) >= 2
@@ -48,17 +49,15 @@ def test_chunk_text_overlap():
     overlap = first_words & second_words
     assert len(overlap) > 0, "Chunks should have overlapping words"
 
-
 def test_chunk_text_preserves_page_number():
-    """Test that page number is preserved in all chunks."""
+    """Test that page number is preserved in all generated chunks."""
     text = " ".join(f"word{i}" for i in range(600))
     chunks = chunk_text(5, text)
     for chunk in chunks:
         assert chunk["page_number"] == 5
 
-
 def test_chunk_text_sequential_index():
-    """Test that chunk indices are sequential."""
+    """Test that chunk indices are strictly sequential."""
     text = " ".join(f"word{i}" for i in range(600))
     chunks = chunk_text(1, text)
     for i, chunk in enumerate(chunks):
