@@ -1,4 +1,8 @@
 @echo off
+REM Program: Quick_Guide - qg.bat
+REM Programmer: Ethan-da-Tech-Wizard (written with Claude, an AI assistant)
+REM Last Modified: 2026-11-18
+REM Purpose: Windows launcher that checks for Python, creates a virtual environment, installs requirements and starts the QuickGuide server.
 setlocal enabledelayedexpansion
 
 echo.
@@ -8,6 +12,7 @@ echo ============================================
 echo.
 
 :: Check Python
+:: 'where python' succeeds only if python can be found on the PATH
 where python >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Python is not installed or not in PATH.
@@ -29,6 +34,7 @@ if not exist ".venv" (
     python -m venv .venv
 )
 
+:: 'call' runs the activate script and then returns here
 :: Activate virtual environment
 call .venv\Scripts\activate.bat
 
@@ -42,6 +48,7 @@ if %errorlevel% neq 0 (
     pip install -r requirements.txt --no-cache-dir
 )
 
+:: Run main.py from inside src/ so its imports work
 :: Start the application
 echo.
 echo [*] Starting QuickGuide...

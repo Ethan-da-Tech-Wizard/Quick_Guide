@@ -1,3 +1,7 @@
+/* Program: Quick_Guide - app.css
+   Programmer: Ethan-da-Tech-Wizard (written with Claude, an AI assistant)
+   Last Modified: 2026-11-18
+   Purpose: Stylesheet for the QuickGuide web page: warm color variables, header, buttons, search panel, result cards, PDF viewer layers, modal, toasts and responsive rules. */
 /* ═══════════════════════════════════════════════
    QuickGuide (QG) — Cozy Design System
    Warm, inviting, layman-friendly UI
@@ -72,6 +76,7 @@ body {
   flex-wrap: wrap;
 }
 
+/* Logo area: icon and app name sit side by side */
 .qg-logo {
   display: flex;
   align-items: center;
@@ -79,12 +84,14 @@ body {
   flex-shrink: 0;
 }
 
+/* Size of the round QG logo icon */
 .qg-logo-icon {
   width: 36px;
   height: 36px;
   filter: drop-shadow(0 2px 4px rgba(224, 122, 95, 0.3));
 }
 
+/* The 'QuickGuide' wordmark next to the icon */
 .qg-logo-text {
   font-size: 1.25rem;
   font-weight: 800;
@@ -92,6 +99,7 @@ body {
   letter-spacing: -0.5px;
 }
 
+/* Group holding the document dropdown and the upload button */
 .qg-doc-selector {
   display: flex;
   align-items: center;
@@ -100,6 +108,7 @@ body {
   min-width: 200px;
 }
 
+/* Small label text beside the document dropdown */
 .qg-doc-label {
   font-size: 0.85rem;
   font-weight: 600;
@@ -107,6 +116,7 @@ body {
   white-space: nowrap;
 }
 
+/* Styling for the document dropdown */
 .qg-select {
   flex: 1;
   padding: 8px 12px;
@@ -122,11 +132,13 @@ body {
   max-width: 350px;
 }
 
+/* Highlight the dropdown when it has keyboard focus */
 .qg-select:focus {
   outline: none;
   border-color: var(--accent);
 }
 
+/* Container for buttons on the right of the header */
 .qg-header-actions {
   display: flex;
   gap: 8px;
@@ -148,41 +160,49 @@ body {
   white-space: nowrap;
 }
 
+/* Button appearance while being pressed */
 .qg-btn:active {
   transform: scale(0.97);
 }
 
+/* Primary (dark) button color */
 .qg-btn-primary {
   background: var(--primary);
   color: white;
 }
 
+/* Primary button color when the mouse is over it */
 .qg-btn-primary:hover {
   background: var(--primary-hover);
   box-shadow: var(--shadow-md);
 }
 
+/* Accent (orange) button color, used for Search */
 .qg-btn-accent {
   background: var(--accent);
   color: white;
 }
 
+/* Accent button color on mouse hover */
 .qg-btn-accent:hover {
   background: var(--accent-hover);
   box-shadow: var(--shadow-md);
 }
 
+/* Danger button color, used for Delete */
 .qg-btn-danger {
   background: transparent;
   color: var(--danger);
   border: 2px solid var(--danger);
 }
 
+/* Danger button color on mouse hover */
 .qg-btn-danger:hover {
   background: var(--danger);
   color: white;
 }
 
+/* Smaller button variant, used for the match arrows */
 .qg-btn-sm {
   padding: 6px 12px;
   font-size: 0.8rem;
@@ -192,11 +212,13 @@ body {
   border: 1px solid var(--border);
 }
 
+/* Small button appearance on mouse hover */
 .qg-btn-sm:hover {
   background: var(--surface-3);
   border-color: var(--accent);
 }
 
+/* Size of the emoji icon inside a button */
 .qg-btn-icon {
   font-size: 1rem;
 }
@@ -227,6 +249,7 @@ body {
   background: var(--surface-2);
 }
 
+/* One tab button */
 .qg-tab {
   flex: 1;
   padding: 12px;
@@ -241,17 +264,20 @@ body {
   transition: all var(--transition);
 }
 
+/* Tab appearance on mouse hover */
 .qg-tab:hover {
   color: var(--primary);
   background: var(--surface);
 }
 
+/* The currently selected tab */
 .qg-tab.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
   background: var(--surface);
 }
 
+/* The content area shown under a tab */
 .qg-tab-content {
   display: flex;
   flex-direction: column;
@@ -259,6 +285,7 @@ body {
   overflow: hidden;
 }
 
+/* Heading text inside a panel */
 .qg-panel-title {
   font-size: 1rem;
   font-weight: 700;
@@ -266,16 +293,19 @@ body {
   margin-bottom: 10px;
 }
 
+/* Box around the search input and hint */
 .qg-search-box {
   padding: 16px;
   border-bottom: 1px solid var(--border);
 }
 
+/* Puts the search input and Search button in one row */
 .qg-search-input-wrap {
   display: flex;
   gap: 8px;
 }
 
+/* Styling for text input boxes */
 .qg-input {
   flex: 1;
   padding: 10px 14px;
@@ -288,6 +318,7 @@ body {
   transition: all var(--transition);
 }
 
+/* Highlight the input when it has keyboard focus */
 .qg-input:focus {
   outline: none;
   border-color: var(--accent);
@@ -295,10 +326,12 @@ body {
   box-shadow: 0 0 0 3px var(--accent-light);
 }
 
+/* Color of the grey hint text inside an empty input */
 .qg-input::placeholder {
   color: var(--text-light);
 }
 
+/* Small helper text under the search box */
 .qg-hint {
   margin-top: 8px;
   font-size: 0.75rem;
@@ -313,6 +346,7 @@ body {
   padding: 8px;
 }
 
+/* Centered message shown when there is nothing to list */
 .qg-empty-state {
   display: flex;
   flex-direction: column;
@@ -323,12 +357,14 @@ body {
   color: var(--text-muted);
 }
 
+/* Large emoji in an empty-state message */
 .qg-empty-icon {
   font-size: 3rem;
   margin-bottom: 12px;
   opacity: 0.6;
 }
 
+/* Text of an empty-state message */
 .qg-empty-state p {
   font-size: 0.9rem;
   line-height: 1.5;
@@ -345,17 +381,20 @@ body {
   transition: all var(--transition);
 }
 
+/* Result card on mouse hover */
 .qg-result-card:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
+/* The result card that is currently selected */
 .qg-result-card.active {
   border-color: var(--accent);
   background: var(--accent-light);
 }
 
+/* Top row of a result card (page and score) */
 .qg-result-header {
   display: flex;
   align-items: center;
@@ -363,6 +402,7 @@ body {
   margin-bottom: 6px;
 }
 
+/* The page-number badge on a result card */
 .qg-result-page {
   font-size: 0.8rem;
   font-weight: 700;
@@ -372,12 +412,14 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* The match-score text on a result card */
 .qg-result-score {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-light);
 }
 
+/* The preview text on a result card */
 .qg-result-snippet {
   font-size: 0.82rem;
   color: var(--text);
@@ -387,6 +429,7 @@ body {
   padding-right: 4px;
 }
 
+/* The 'go to page' link on a result card */
 .qg-result-link {
   display: inline-flex;
   align-items: center;
@@ -399,6 +442,7 @@ body {
   transition: color var(--transition);
 }
 
+/* Result link on mouse hover */
 .qg-result-link:hover {
   color: var(--accent-hover);
   text-decoration: underline;
@@ -411,6 +455,7 @@ body {
   background: var(--surface-2);
 }
 
+/* Previous / next match buttons and counter */
 .qg-match-nav {
   display: flex;
   align-items: center;
@@ -418,6 +463,7 @@ body {
   margin-bottom: 10px;
 }
 
+/* The 'Match X of Y' text */
 .qg-match-counter {
   font-size: 0.82rem;
   font-weight: 700;
@@ -426,6 +472,7 @@ body {
   text-align: center;
 }
 
+/* Group holding the color picker and swatches */
 .qg-color-picker-wrap {
   display: flex;
   align-items: center;
@@ -433,12 +480,14 @@ body {
   flex-wrap: wrap;
 }
 
+/* Label for the highlight color picker */
 .qg-color-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
+/* The native color input */
 .qg-color-picker {
   width: 32px;
   height: 32px;
@@ -449,11 +498,13 @@ body {
   background: none;
 }
 
+/* Row of quick color swatches */
 .qg-color-presets {
   display: flex;
   gap: 4px;
 }
 
+/* One round preset color button */
 .qg-color-swatch {
   width: 24px;
   height: 24px;
@@ -464,11 +515,13 @@ body {
   padding: 0;
 }
 
+/* Swatch on mouse hover */
 .qg-color-swatch:hover {
   transform: scale(1.2);
   border-color: var(--text);
 }
 
+/* The swatch for the currently chosen color */
 .qg-color-swatch.active {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--accent);
@@ -484,6 +537,7 @@ body {
   position: relative;
 }
 
+/* Welcome screen shown before a document is opened */
 .qg-viewer-placeholder {
   display: flex;
   align-items: center;
@@ -492,11 +546,13 @@ body {
   padding: 40px;
 }
 
+/* Centered content of the welcome screen */
 .qg-placeholder-content {
   text-align: center;
   max-width: 420px;
 }
 
+/* Large logo on the welcome screen */
 .qg-placeholder-icon {
   width: 100px;
   height: 100px;
@@ -504,6 +560,7 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+/* Animation: the welcome logo gently bobs up and down */
 @keyframes float {
 
   0%,
@@ -516,6 +573,7 @@ body {
   }
 }
 
+/* Welcome screen heading */
 .qg-placeholder-content h2 {
   font-size: 1.5rem;
   font-weight: 800;
@@ -523,18 +581,21 @@ body {
   margin-bottom: 8px;
 }
 
+/* Welcome screen paragraph */
 .qg-placeholder-content p {
   font-size: 0.95rem;
   color: var(--text-muted);
   margin-bottom: 20px;
 }
 
+/* Numbered how-to list on the welcome screen */
 .qg-steps {
   text-align: left;
   list-style: none;
   padding: 0;
 }
 
+/* One step in the how-to list */
 .qg-steps li {
   padding: 10px 14px;
   margin-bottom: 8px;
@@ -546,6 +607,7 @@ body {
   counter-increment: step;
 }
 
+/* The numbered circle drawn before each step */
 .qg-steps li::before {
   content: counter(step);
   display: inline-flex;
@@ -561,6 +623,7 @@ body {
   margin-right: 10px;
 }
 
+/* Bold lead-in words of each step */
 .qg-steps li strong {
   color: var(--primary);
 }
@@ -579,6 +642,7 @@ body {
   gap: 20px;
 }
 
+/* Box around one PDF page (canvas plus overlays) */
 .qg-page-wrapper {
   position: relative;
   box-shadow: var(--shadow-lg);
@@ -588,11 +652,13 @@ body {
   transition: opacity var(--transition);
 }
 
+/* Faded page with a spinner while it is still rendering */
 .qg-page-wrapper.loading {
   opacity: 0.5;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23E07A5F" stroke-width="4" opacity="0.2"/><path d="M25 5 A 20 20 0 0 1 45 25" fill="none" stroke="%23E07A5F" stroke-width="4"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></path></svg>') center center no-repeat white;
 }
 
+/* The canvas the PDF page is drawn on */
 .qg-pdf-canvas {
   display: block;
 }
@@ -611,6 +677,7 @@ body {
   pointer-events: auto;
 }
 
+/* Each piece of selectable text: transparent, absolutely positioned */
 .qg-text-layer span {
   color: transparent !important;
   position: absolute;
@@ -619,6 +686,7 @@ body {
   transform-origin: 0% 0%;
 }
 
+/* Hide line breaks inside the text layer */
 .qg-text-layer br {
   display: none;
 }
@@ -633,6 +701,7 @@ body {
   height: 100%;
 }
 
+/* One highlight box */
 .qg-highlight-rect {
   position: absolute;
   background: rgba(255, 224, 102, 0.4);
@@ -642,6 +711,7 @@ body {
   pointer-events: none;
 }
 
+/* The highlight box for the current match, drawn stronger */
 .qg-highlight-rect.active-match {
   background: rgba(255, 224, 102, 0.6);
   border-color: var(--accent);
@@ -666,6 +736,7 @@ body {
   transition: opacity var(--transition);
 }
 
+/* Badge becomes fully opaque on hover */
 .qg-floating-indicator:hover {
   opacity: 1;
 }
@@ -682,6 +753,7 @@ body {
   backdrop-filter: blur(4px);
 }
 
+/* The pop-up dialog box */
 .qg-modal {
   background: var(--surface);
   border-radius: var(--radius-xl);
@@ -692,6 +764,7 @@ body {
   text-align: center;
 }
 
+/* Pop-up heading */
 .qg-modal h3 {
   font-size: 1.15rem;
   font-weight: 800;
@@ -699,6 +772,7 @@ body {
   margin-bottom: 16px;
 }
 
+/* Track (background) of the progress bar */
 .qg-progress-bar-wrap {
   width: 100%;
   height: 10px;
@@ -708,6 +782,7 @@ body {
   margin-bottom: 12px;
 }
 
+/* The filled part of the progress bar */
 .qg-progress-bar {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--success));
@@ -715,6 +790,7 @@ body {
   transition: width 0.5s ease;
 }
 
+/* Status text under the progress bar */
 .qg-progress-msg {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -731,6 +807,7 @@ body {
   gap: 8px;
 }
 
+/* One toast notification */
 .qg-toast {
   padding: 12px 20px;
   border-radius: var(--radius-md);
@@ -744,14 +821,17 @@ body {
   max-width: 320px;
 }
 
+/* Error toast color */
 .qg-toast.error {
   background: var(--danger);
 }
 
+/* Success toast color */
 .qg-toast.success {
   background: var(--success);
 }
 
+/* Animation: a toast slides in from the side */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -766,22 +846,26 @@ body {
 
 /* ── Scrollbar ─────────────────────────────── */
 .qg-results::-webkit-scrollbar,
+/* Width of the custom scrollbar (WebKit browsers) */
 .qg-pdf-scroll-container::-webkit-scrollbar {
   width: 6px;
 }
 
 .qg-results::-webkit-scrollbar-track,
+/* Scrollbar track */
 .qg-pdf-scroll-container::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .qg-results::-webkit-scrollbar-thumb,
+/* Scrollbar draggable handle */
 .qg-pdf-scroll-container::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
 }
 
 .qg-results::-webkit-scrollbar-thumb:hover,
+/* Scrollbar handle on hover */
 .qg-pdf-scroll-container::-webkit-scrollbar-thumb:hover {
   background: var(--text-light);
 }
@@ -797,6 +881,7 @@ body {
   animation: spin 0.6s linear infinite;
 }
 
+/* Animation: rotate one full turn */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -805,10 +890,12 @@ body {
 
 /* ── Responsive ────────────────────────────── */
 @media (max-width: 1024px) {
+  /* Main area: left search panel and right PDF viewer side by side */
   .qg-main {
     flex-direction: column;
   }
 
+  /* Left panel holding the tabs, search box and results */
   .qg-search-panel {
     width: 100%;
     min-width: 0;
@@ -817,6 +904,7 @@ body {
     border-bottom: 1px solid var(--border);
   }
 
+  /* Right side area that shows the PDF */
   .qg-viewer {
     flex: 1;
     min-height: 0;
@@ -827,36 +915,45 @@ body {
     gap: 8px;
   }
 
+  /* The 'QuickGuide' wordmark next to the icon */
   .qg-logo-text {
     display: none;
   }
 
+  /* Group holding the document dropdown and the upload button */
   .qg-doc-selector {
     flex-wrap: wrap;
   }
 
+  /* Small label text beside the document dropdown */
   .qg-doc-label {
     display: none;
   }
 
+  /* Styling for the document dropdown */
   .qg-select {
     max-width: none;
   }
 }
 
+/* Phone size: tighter padding and a full-width Search button */
 @media (max-width: 600px) {
+  /* Left panel holding the tabs, search box and results */
   .qg-search-panel {
     max-height: 40vh;
   }
 
+  /* Box around the search input and hint */
   .qg-search-box {
     padding: 10px;
   }
 
+  /* Puts the search input and Search button in one row */
   .qg-search-input-wrap {
     flex-direction: column;
   }
 
+  /* Accent (orange) button color, used for Search */
   .qg-btn-accent {
     width: 100%;
     justify-content: center;

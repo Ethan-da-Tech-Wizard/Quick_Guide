@@ -1,3 +1,7 @@
+// Program: Quick_Guide - app.js
+// Programmer: Ethan-da-Tech-Wizard (written with Claude, an AI assistant)
+// Last Modified: 2026-11-18
+// Purpose: Browser-side logic for QuickGuide: loads documents, uploads PDFs, renders pages with PDF.js, runs searches, steps through matches and manages saved highlights.
 /**
  * QuickGuide (QG) — Main Application JavaScript
  *
@@ -6,25 +10,39 @@
  */
 
 // ── PDF.js Setup ────────────────────────────────
+// Load the PDF.js library from a CDN. Top-level await works because this file is loaded as a module.
 const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+// PDF.js does heavy work in a background "worker" script; tell it where to find that file
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
 
 // ── State ───────────────────────────────────────
+// Central place that remembers what the app is doing right now
 const state = {
+  // id of the open document (null when none)
   currentDocId: null,
+  // the PDF.js document object for the open PDF
   pdfDoc: null,
+  // page nearest the top of the viewer
   currentPage: 1,
+  // number of pages in the open PDF
   totalPages: 0,
+  // zoom factor used when drawing pages
   scale: 1.5,
+  // results from the last search
   searchResults: [],
   matches: [],          // {page, rects: [{x0,y0,x1,y1}], text}
+  // which match is selected (-1 = none)
   currentMatchIndex: -1,
+  // color used to draw search-match highlights
   highlightColor: '#FFE066',
+  // true while a search request is running (prevents double searches)
   isSearching: false,
+  // true while an upload is running
   isUploading: false,
 };
 
 // ── DOM References ──────────────────────────────
+// Shortcuts to the HTML elements we use, looked up once by their id
 const els = {
   docSelect: document.getElementById('doc-select'),
   btnUpload: document.getElementById('btn-upload'),
@@ -49,7 +67,10 @@ const els = {
 };
 
 // ── Intersection Observer for Lazy Rendering ──
+// The observer watches page boxes and tells us when one scrolls near the screen
+// so we only draw pages that are needed (lazy rendering)
 let pageObserver = null;
+// Set of page numbers already drawn, to avoid drawing twice
 const renderedPages = new Set();
 
 
@@ -57,18 +78,30 @@ const renderedPages = new Set();
 // API Helpers
 // ══════════════════════════════════════════════════
 
+/**
+ * Send a request to the server and return its JSON reply.
+ * @param {string} method - HTTP verb such as 'GET', 'POST' or 'DELETE'.
+ * @param {string} path - URL path, for example '/api/documents'.
+ * @param {Object|FormData|null} body - Optional data to send.
+ * @returns {Promise<any>} The parsed JSON response; throws an Error if the server reports a problem.
+ */
 async function api(method, path, body = null) {
+  // Build the fetch options: method plus headers
   const opts = {
     method,
     headers: {},
   };
+  // Plain objects are sent as JSON text
   if (body && !(body instanceof FormData)) {
     opts.headers['Content-Type'] = 'application/json';
     opts.body = JSON.stringify(body);
+  // File uploads (FormData) are sent as-is; the browser sets the headers
   } else if (body instanceof FormData) {
     opts.body = body;
   }
+  // Make the request and wait for the reply
   const res = await fetch(path, opts);
+  // Status codes outside 200-299 mean an error; try to read the server's message
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || 'Request failed');
@@ -76,12 +109,19 @@ async function api(method, path, body = null) {
   return res.json();
 }
 
+/**
+ * Show a small pop-up message that disappears by itself after 4 seconds.
+ * @param {string} message - Text to show.
+ * @param {string} type - 'info', 'success' or 'error' (controls the color).
+ */
 function showToast(message, type = 'info') {
+  // Create the toast element and add it to the page
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
   toast.className = `qg-toast ${type}`;
   toast.textContent = message;
   container.appendChild(toast);
+  // After 4 seconds fade it out, then remove it from the page 0.3 seconds later
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(100%)';
@@ -94,10 +134,16 @@ function showToast(message, type = 'info') {
 // Document Management
 // ══════════════════════════════════════════════════
 
+/**
+ * Fetch the document list from the server and fill the dropdown.
+ * Documents that are not 'ready' yet are shown but disabled.
+ */
 async function loadDocuments() {
   try {
     const docs = await api('GET', '/api/documents');
+    // Reset the dropdown to just the placeholder option
     els.docSelect.innerHTML = '<option value="">— Select a document —</option>';
+    // Add one <option> per document
     docs.forEach(doc => {
       const opt = document.createElement('option');
       opt.value = doc.id;
@@ -110,6 +156,7 @@ async function loadDocuments() {
     });
 
     // Restore selection
+    // (keeps the same document selected after the list is rebuilt)
     if (state.currentDocId) {
       els.docSelect.value = state.currentDocId;
     }
@@ -118,13 +165,19 @@ async function loadDocuments() {
   }
 }
 
+/**
+ * Upload a PDF to the server, show a progress pop-up, then open the new document.
+ * @param {File} file - The PDF chosen by the user.
+ */
 async function uploadDocument(file) {
   state.isUploading = true;
+  // Show the progress pop-up and set the starting bar width and message
   els.progressModal.style.display = 'flex';
   els.progressBar.style.width = '10%';
   els.progressMessage.textContent = 'Uploading PDF...';
 
   try {
+    // FormData packages the file the way a web form would
     const formData = new FormData();
     formData.append('file', file);
 
@@ -132,11 +185,13 @@ async function uploadDocument(file) {
     els.progressBar.style.width = '30%';
     els.progressMessage.textContent = 'Processing & indexing... This may take a moment.';
 
+    // Wait for the server to save, read and index the PDF (can take a while)
     const doc = await api('POST', '/api/documents/upload', formData);
 
     els.progressBar.style.width = '100%';
     els.progressMessage.textContent = 'Done! Your document is ready.';
 
+    // After a short pause close the pop-up, select the new document and refresh the dropdown
     setTimeout(() => {
       els.progressModal.style.display = 'none';
       state.currentDocId = doc.id;
@@ -148,14 +203,21 @@ async function uploadDocument(file) {
     }, 800);
 
   } catch (e) {
+  // Upload failed: hide the pop-up and tell the user why
     els.progressModal.style.display = 'none';
     showToast(`Upload failed: ${e.message}`, 'error');
   } finally {
+  // Always runs, whether the upload worked or not
     state.isUploading = false;
   }
 }
 
+/**
+ * Open a document in the viewer (or return to the welcome screen when none is chosen).
+ * @param {string|number} docId - Id from the dropdown; empty means no document.
+ */
 async function selectDocument(docId) {
+  // Nothing chosen: reset everything and show the welcome screen
   if (!docId) {
     state.currentDocId = null;
     state.pdfDoc = null;
@@ -165,18 +227,21 @@ async function selectDocument(docId) {
     return;
   }
 
+  // Remember the chosen document and show the Delete button
   state.currentDocId = parseInt(docId);
   els.btnDeleteDoc.style.display = 'inline-flex';
   clearResults();
 
   try {
     // Load PDF with PDF.js
+    // (the PDF file comes from the server's /pdf route)
     const url = `/api/documents/${docId}/pdf`;
     const loadingTask = pdfjsLib.getDocument(url);
     state.pdfDoc = await loadingTask.promise;
     state.totalPages = state.pdfDoc.numPages;
     state.currentPage = 1;
 
+    // Swap the welcome screen for the PDF area and build empty page boxes
     hidePlaceholder();
     initScrollContainer();
   } catch (e) {
@@ -184,8 +249,12 @@ async function selectDocument(docId) {
   }
 }
 
+/**
+ * Ask for confirmation, then delete the open document on the server and reset the screen.
+ */
 async function deleteDocument() {
   if (!state.currentDocId) return;
+  // confirm() shows a yes/no pop-up; stop if the user says no
   if (!confirm('Are you sure you want to delete this document? This cannot be undone.')) return;
 
   try {
@@ -207,6 +276,10 @@ async function deleteDocument() {
 // Continuous PDF Rendering
 // ══════════════════════════════════════════════════
 
+/**
+ * Create an empty, correctly sized box for every page of the open PDF.
+ * The real drawing of each page happens later, only when it scrolls near the screen.
+ */
 async function initScrollContainer() {
   els.pdfContainer.innerHTML = '';
   renderedPages.clear();
@@ -216,6 +289,7 @@ async function initScrollContainer() {
   }
 
   // Calculate base dimensions
+  // Use page 1 to estimate how big a page is (height divided by width = aspect ratio)
   const firstPage = await state.pdfDoc.getPage(1);
   const viewport = firstPage.getViewport({ scale: state.scale });
   const aspectRatio = viewport.height / viewport.width;
@@ -226,6 +300,7 @@ async function initScrollContainer() {
   const wrapperWidth = Math.min(viewport.width, safeWidth);
   const estimatedHeight = wrapperWidth * Math.max(aspectRatio, 1.0);
 
+  // Watch each page box; rootMargin makes the callback fire a little before the box is visible
   pageObserver = new IntersectionObserver(handleIntersection, {
     root: els.pdfContainer,
     rootMargin: '400px 0px 400px 0px', // Pre-render 400px outside viewport
@@ -233,6 +308,7 @@ async function initScrollContainer() {
   });
 
   // Create empty wrapper divs for all pages
+  // One box (wrapper) per page, numbered from 1
   for (let i = 1; i <= state.totalPages; i++) {
     const wrapper = document.createElement('div');
     wrapper.className = 'qg-page-wrapper loading';
@@ -244,22 +320,29 @@ async function initScrollContainer() {
     wrapper.style.height = estimatedHeight + 'px';
 
     // Add canvas and layers placeholders
+    // Each box holds the page picture (canvas), an invisible text layer and a highlight layer
     wrapper.innerHTML = `
       <canvas class="qg-pdf-canvas"></canvas>
       <div class="qg-text-layer"></div>
       <div class="qg-highlight-layer"></div>
     `;
 
+    // Put the box on the page and start watching it
     els.pdfContainer.appendChild(wrapper);
     pageObserver.observe(wrapper);
   }
 
+  // Show the current page number now
   updatePageIndicatorContainer();
 
   // Also track which page is mostly in view to update the floating indicator
   els.pdfContainer.addEventListener('scroll', updatePageIndicatorContainer, { passive: true });
 }
 
+/**
+ * Called by the IntersectionObserver when page boxes enter or leave view; draws pages that appeared.
+ * @param {IntersectionObserverEntry[]} entries - The boxes whose visibility changed.
+ */
 function handleIntersection(entries) {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
@@ -271,25 +354,36 @@ function handleIntersection(entries) {
   });
 }
 
+/**
+ * Draw one PDF page into its box: the picture, the selectable text layer, then highlights.
+ * @param {number} pageNum - 1-based page number.
+ * @param {HTMLElement} wrapper - The page box to draw into.
+ */
 async function renderPageIntoWrapper(pageNum, wrapper) {
   renderedPages.add(pageNum);
 
+  // Ask PDF.js for this page and work out its size at the current zoom
   const page = await state.pdfDoc.getPage(pageNum);
   const viewport = page.getViewport({ scale: state.scale });
 
+  // The canvas is the drawing surface for the page picture
   const canvas = wrapper.querySelector('.qg-pdf-canvas');
   const ctx = canvas.getContext('2d');
 
   // Use exact dimensions now that we have the specific page
+  // Use exact dimensions now that we have the specific page (replaces the estimate)
   wrapper.style.width = viewport.width + 'px';
   wrapper.style.height = viewport.height + 'px';
 
+  // Make the canvas as large as the page
   canvas.width = viewport.width;
   canvas.height = viewport.height;
 
+  // Draw the page onto the canvas and wait until finished
   await page.render({ canvasContext: ctx, viewport }).promise;
 
   // Render invisible text layer for selection
+  // The text layer sits on top so the user can select text with the mouse
   const textLayerDiv = wrapper.querySelector('.qg-text-layer');
   if (textLayerDiv) {
     textLayerDiv.style.width = viewport.width + 'px';
@@ -309,20 +403,26 @@ async function renderPageIntoWrapper(pageNum, wrapper) {
     }
   }
 
+  // Page is ready: remove the faded loading look
   wrapper.classList.remove('loading');
 
   // Draw highlights specific to this page
   drawHighlightsForPage(pageNum);
 }
 
+/**
+ * Work out which page is nearest the top of the scroll area and update the floating 'Page X of Y' label.
+ */
 function updatePageIndicatorContainer() {
   if (!state.pdfDoc) return;
   els.floatingPageIndicator.style.display = 'block';
 
   // Find which wrapper is closest to the top of the container
   const containerTop = els.pdfContainer.scrollTop;
+  // All page boxes, as an array so we can loop over them
   const wrappers = Array.from(els.pdfContainer.querySelectorAll('.qg-page-wrapper'));
 
+  // Track the box whose top edge is closest to the scroll position
   let closestPage = 1;
   let minDiff = Infinity;
 
@@ -334,10 +434,15 @@ function updatePageIndicatorContainer() {
     }
   });
 
+  // Save and display the result
   state.currentPage = closestPage;
   els.floatingPageIndicator.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
 }
 
+/**
+ * Scroll the viewer to a page. (Despite the name it no longer draws; the observer draws pages.)
+ * @param {number} pageNum - 1-based page number.
+ */
 async function renderPage(pageNum) {
   // Polyfill the old renderPage function for external compat
   const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
@@ -346,12 +451,18 @@ async function renderPage(pageNum) {
   }
 }
 
+/**
+ * Show the welcome screen and hide the PDF area.
+ */
 function showPlaceholder() {
   els.viewerPlaceholder.style.display = 'flex';
   els.pdfContainer.style.display = 'none';
   if (els.floatingPageIndicator) els.floatingPageIndicator.style.display = 'none';
 }
 
+/**
+ * Hide the welcome screen and show the PDF area.
+ */
 function hidePlaceholder() {
   els.viewerPlaceholder.style.display = 'none';
   els.pdfContainer.style.display = 'flex';
@@ -362,23 +473,30 @@ function hidePlaceholder() {
 // Search
 // ══════════════════════════════════════════════════
 
+/**
+ * Run a search for the text in the search box: validate, call the API, show results and match highlights.
+ */
 async function performSearch() {
   const query = els.searchInput.value.trim();
+  // Need at least 3 characters (the server requires it too)
   if (!query || query.length < 3) {
     showToast('Please enter at least 3 characters', 'error');
     return;
   }
 
+  // A document must be open first
   if (!state.currentDocId) {
     showToast('Please select a document first', 'error');
     return;
   }
 
+  // Ignore clicks while a search is already running; show a spinner in the button
   if (state.isSearching) return;
   state.isSearching = true;
   els.btnSearch.innerHTML = '<span class="qg-spinner"></span>';
 
   try {
+    // Ask the server for the best matching passages
     const data = await api('POST', '/api/search', {
       document_id: state.currentDocId,
       query: query,
@@ -398,12 +516,19 @@ async function performSearch() {
   } catch (e) {
     showToast(`Search failed: ${e.message}`, 'error');
   } finally {
+  // Restore the button whatever happened
     state.isSearching = false;
     els.btnSearch.innerHTML = 'Search';
   }
 }
 
+/**
+ * Fill the results list with one card per match.
+ * @param {Array} results - Result objects from the server.
+ * @param {string} query - The text that was searched (not used for drawing).
+ */
 function displayResults(results, query) {
+  // No matches: show a friendly message and hide the toolbar
   if (results.length === 0) {
     els.resultsContainer.innerHTML = `
       <div class="qg-empty-state">
@@ -416,8 +541,10 @@ function displayResults(results, query) {
 
   els.emptyState.style.display = 'none';
 
+  // Build the cards as one HTML string, then insert it all at once
   let html = '';
   results.forEach((r, i) => {
+    // Turn a 0-1 score into a whole-number percent
     const scorePercent = Math.round(r.score * 100);
     html += `
       <div class="qg-result-card" data-index="${i}" data-page="${r.page_number}">
@@ -432,9 +559,11 @@ function displayResults(results, query) {
       </div>`;
   });
 
+  // escapeHtml (used above) stops document text from being treated as HTML
   els.resultsContainer.innerHTML = html;
 
   // Attach click handlers
+  // (clicking a card jumps to its match)
   els.resultsContainer.querySelectorAll('.qg-result-card').forEach(card => {
     card.addEventListener('click', () => {
       const idx = parseInt(card.dataset.index);
@@ -443,12 +572,16 @@ function displayResults(results, query) {
   });
 }
 
+/**
+ * Reset all search state, empty the results list and remove highlights from every page.
+ */
 function clearResults() {
   state.searchResults = [];
   state.matches = [];
   state.currentMatchIndex = -1;
   state.isSearching = false;
 
+  // Reset the panel: empty list, show the empty-state message, hide the toolbar, clear the box
   els.resultsContainer.innerHTML = '';
   els.resultsContainer.style.display = 'none';
   els.emptyState.style.display = 'flex';
@@ -456,11 +589,13 @@ function clearResults() {
   els.searchInput.value = '';
 
   // Clear all page highlights
+  // (empties each page's highlight layer)
   document.querySelectorAll('.qg-highlight-layer').forEach(layer => {
     layer.innerHTML = '';
   });
 
   // Re-draw saved highlights if needed
+  // (saved highlights from the server are drawn again for every page)
   if (state.currentPage) {
     // We don't renderPage() here to avoid loop, just rely on standard draw.
     // drawHighlightsForPage handles both custom and search matches.
@@ -475,10 +610,17 @@ function clearResults() {
 // Multi-Match Highlighting & Navigation
 // ══════════════════════════════════════════════════
 
+/**
+ * Turn search results into 'matches' with on-page rectangles so they can be highlighted and stepped through.
+ * @param {Array} results - Search results from the server.
+ * @param {string} query - The user's search text.
+ */
 async function buildMatches(results, query) {
+  // Start with an empty match list
   state.matches = [];
 
   // Group results by page and get text positions
+  // Group results by page number
   const pageGroups = {};
   results.forEach(r => {
     if (!pageGroups[r.page_number]) {
@@ -488,14 +630,17 @@ async function buildMatches(results, query) {
   });
 
   // Extract key phrases from the query for highlighting
+  // (queryWords is computed here but is not used later in this function)
   const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 3);
 
+  // Visit each page that has results
   for (const [pageStr, pageResults] of Object.entries(pageGroups)) {
     const page = parseInt(pageStr);
 
     // Try to get text positions for the user's query directly
     for (const result of pageResults) {
       try {
+        // Ask the server where the query text sits on this page (rectangles as page fractions)
         const posData = await api('GET',
           `/api/documents/${state.currentDocId}/text-positions?page=${page}&q=${encodeURIComponent(query)}`
         );
@@ -535,12 +680,18 @@ async function buildMatches(results, query) {
   }
 }
 
+/**
+ * Select a match: mark its result card as active, scroll to its page and redraw highlights.
+ * @param {number} index - Position in state.matches.
+ */
 async function navigateToMatch(index) {
+  // Ignore numbers outside the match list
   if (index < 0 || index >= state.matches.length) return;
 
   state.currentMatchIndex = index;
   const match = state.matches[index];
 
+  // (remove 'active' from all cards, then add it to the one for this match)
   // Highlight active result card
   els.resultsContainer.querySelectorAll('.qg-result-card').forEach(c => c.classList.remove('active'));
   const activeCard = els.resultsContainer.querySelector(`[data-index="${match.resultIndex}"]`);
@@ -549,6 +700,7 @@ async function navigateToMatch(index) {
     activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  // (scroll to the page if it is not the current one; otherwise just redraw its highlights)
   // Navigate to the page
   if (state.currentPage !== match.page) {
     await renderPage(match.page);
@@ -559,20 +711,29 @@ async function navigateToMatch(index) {
   updateMatchCounter();
 }
 
+/**
+ * Draw all highlight boxes on one page: search matches first, then saved user highlights fetched from the server.
+ * @param {number} pageNum - 1-based page number.
+ */
 async function drawHighlightsForPage(pageNum) {
+  // Find this page's box and its highlight layer; stop if either is missing
   const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
   if (!wrapper) return;
   const highlightLayer = wrapper.querySelector('.qg-highlight-layer');
   if (!highlightLayer) return;
 
+  // Clear old boxes before drawing again
   highlightLayer.innerHTML = '';
 
+  // Matches that belong to this page
   const pageMatches = state.matches.filter(m => m.page === pageNum);
   const color = state.highlightColor;
 
+  // Draw each match; the active one is drawn stronger
   pageMatches.forEach((match, i) => {
     const isActive = state.matches.indexOf(match) === state.currentMatchIndex;
 
+    // Precise rectangles: one box per rectangle, positioned as percentages of the page size
     if (match.rects.length > 0) {
       match.rects.forEach(rect => {
         const div = document.createElement('div');
@@ -585,6 +746,7 @@ async function drawHighlightsForPage(pageNum) {
         div.style.borderColor = hexToRgba(color, 0.9);
         highlightLayer.appendChild(div);
 
+        // (after a short delay, scroll so the active box is visible)
         // Scroll into view if active
         if (isActive) {
           setTimeout(() => {
@@ -596,6 +758,7 @@ async function drawHighlightsForPage(pageNum) {
         }
       });
     } else if (isActive) {
+    // No precise rects
       // No precise rects — show a page-level indicator
       const div = document.createElement('div');
       div.className = 'qg-highlight-rect active-match';
@@ -609,14 +772,17 @@ async function drawHighlightsForPage(pageNum) {
     }
   });
 
+  // (these come from the database via the highlights API)
   // Draw saved custom highlights
   if (!state.currentDocId) return;
   try {
     const highlights = await api('GET', `/api/documents/${state.currentDocId}/highlights?page=${pageNum}`);
+    // Loop over the saved highlights returned for this page
     for (const h of highlights) {
       if (h.page_number !== pageNum) continue;
 
       try {
+        // (a saved highlight stores text, so its position is looked up again each time)
         // Fetch precise text positioning for this custom highlight
         const posData = await api('GET', `/api/documents/${state.currentDocId}/text-positions?page=${pageNum}&q=${encodeURIComponent(h.text_content)}`);
 
@@ -650,18 +816,28 @@ async function drawHighlightsForPage(pageNum) {
   }
 }
 
+/**
+ * Update the 'Match X of Y' label.
+ */
 function updateMatchCounter() {
   els.matchCounter.textContent = state.matches.length > 0
     ? `Match ${state.currentMatchIndex + 1} of ${state.matches.length}`
     : 'No matches';
 }
 
+/**
+ * Go to the next match, wrapping from the last back to the first.
+ */
 function nextMatch() {
   if (state.matches.length === 0) return;
+  // The % (remainder) operator makes the index wrap around
   const next = (state.currentMatchIndex + 1) % state.matches.length;
   navigateToMatch(next);
 }
 
+/**
+ * Go to the previous match, wrapping from the first to the last.
+ */
 function prevMatch() {
   if (state.matches.length === 0) return;
   const prev = (state.currentMatchIndex - 1 + state.matches.length) % state.matches.length;
@@ -673,6 +849,10 @@ function prevMatch() {
 // Highlight Color Management
 // ══════════════════════════════════════════════════
 
+/**
+ * Set the search-highlight color, update the picker and swatches, and redraw the current page.
+ * @param {string} color - Color as a hex string such as '#FFE066'.
+ */
 function changeHighlightColor(color) {
   state.highlightColor = color;
   els.highlightColor.value = color;
@@ -693,13 +873,25 @@ function changeHighlightColor(color) {
 // Utility
 // ══════════════════════════════════════════════════
 
+/**
+ * Make text safe to insert into HTML by turning special characters like < and & into harmless text.
+ * @param {string} text - Raw text.
+ * @returns {string} Escaped text.
+ */
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
+/**
+ * Convert a hex color to an rgba() string so transparency can be added.
+ * @param {string} hex - Color like '#FFE066'.
+ * @param {number} alpha - Opacity from 0 (invisible) to 1 (solid).
+ * @returns {string} CSS color text.
+ */
 function hexToRgba(hex, alpha) {
+  // Read the red, green and blue pairs of hex digits and convert them to numbers 0-255
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -711,6 +903,7 @@ function hexToRgba(hex, alpha) {
 // Tabs UI
 // ══════════════════════════════════════════════════
 
+// Clicking a tab shows its matching content area and hides the others
 document.querySelectorAll('.qg-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     // Hide all
@@ -738,6 +931,9 @@ document.querySelectorAll('.qg-tab').forEach(tab => {
 // Saved Highlights Management (Light Blue)
 // ══════════════════════════════════════════════════
 
+/**
+ * Fetch all saved highlights for the open document and list them in the My Highlights tab.
+ */
 async function loadSavedHighlights() {
   if (!state.currentDocId) return;
 
@@ -754,6 +950,7 @@ async function loadSavedHighlights() {
       return;
     }
 
+    // Build one card per highlight; the colored left border shows the highlight color
     let html = '';
     highlights.forEach(h => {
       html += `
@@ -768,6 +965,7 @@ async function loadSavedHighlights() {
 
     container.innerHTML = html;
 
+    // (clicking a card scrolls to its page)
     // Attach click to navigate
     container.querySelectorAll('.qg-result-card').forEach(card => {
       card.addEventListener('click', (e) => {
@@ -779,6 +977,7 @@ async function loadSavedHighlights() {
       });
     });
 
+    // (the small X button deletes after a confirmation; stopPropagation keeps the card click from firing too)
     // Attach click to delete
     container.querySelectorAll('.btn-delete-highlight').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -802,18 +1001,22 @@ async function loadSavedHighlights() {
   }
 }
 
+// (when the mouse is released over a page, any selected text can be saved as a highlight)
 // Intercept mouse drag selections on the canvas to create custom highlights
 els.pdfContainer.addEventListener('mouseup', async (e) => {
   if (!state.currentDocId) return;
 
+  // Find which page box the mouse was released in; ignore releases elsewhere
   const wrapper = e.target.closest('.qg-page-wrapper');
   if (!wrapper) return;
   const pageNum = parseInt(wrapper.dataset.page);
 
+  // The text the user has selected; ignore tiny selections
   const selection = window.getSelection();
   const text = selection.toString().trim();
   if (!text || text.length < 3) return;
 
+  // (confirm() pop-up; cancelling clears the selection)
   // Ask for confirmation
   if (!confirm(`Save highlight for:\\n"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"?`)) {
     selection.removeAllRanges();
@@ -821,6 +1024,7 @@ els.pdfContainer.addEventListener('mouseup', async (e) => {
   }
 
   try {
+    // Save the highlight to the server (color is a fixed light blue)
     await api('POST', '/api/highlights', {
       document_id: state.currentDocId,
       page_number: pageNum,
@@ -831,6 +1035,7 @@ els.pdfContainer.addEventListener('mouseup', async (e) => {
     showToast('Highlight saved!', 'success');
     selection.removeAllRanges();
 
+    // (show the new highlight in the list)
     // Switch to Highlights tab if not already on it to show the new highlight
     const tabHighlights = document.querySelector('.qg-tab[data-target="highlights-view"]');
     if (tabHighlights && !tabHighlights.classList.contains('active')) {
@@ -839,6 +1044,7 @@ els.pdfContainer.addEventListener('mouseup', async (e) => {
       loadSavedHighlights();
     }
 
+    // (redraw the page so the new highlight appears)
     // Refresh the specific wrapper to fetch and render the new highlight
     renderPageIntoWrapper(pageNum, wrapper);
 
@@ -852,11 +1058,13 @@ els.pdfContainer.addEventListener('mouseup', async (e) => {
 // Event Listeners
 // ══════════════════════════════════════════════════
 
+// (the 'change' event fires when the user picks a different option)
 // Document selection
 els.docSelect.addEventListener('change', (e) => selectDocument(e.target.value));
 
 // Upload
 els.btnUpload.addEventListener('click', () => els.fileInput.click());
+// When a file is chosen, upload it, then clear the input so the same file can be picked again
 els.fileInput.addEventListener('change', (e) => {
   if (e.target.files.length > 0) {
     uploadDocument(e.target.files[0]);
@@ -883,6 +1091,7 @@ document.querySelectorAll('.qg-color-swatch').forEach(swatch => {
   swatch.addEventListener('click', () => changeHighlightColor(swatch.dataset.color));
 });
 
+// (document-wide shortcuts: Ctrl or Cmd with K, left and right arrows, plus Escape)
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   // Ctrl+K: Focus search
@@ -919,5 +1128,6 @@ window.addEventListener('resize', () => {
 // Initialize
 // ══════════════════════════════════════════════════
 
+// Start-up: fill the dropdown and set the default highlight color
 loadDocuments();
 changeHighlightColor('#FFE066');

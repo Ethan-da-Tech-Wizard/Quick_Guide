@@ -1,23 +1,40 @@
 <!DOCTYPE html>
+<!--
+  Program: Quick_Guide - index.html
+  Programmer: Ethan-da-Tech-Wizard (written with Claude, an AI assistant)
+  Last Modified: 2026-11-18
+  Purpose: The single web page of QuickGuide: header with document picker, search and highlights side panel, PDF viewer area, upload progress pop-up and toast area.
+-->
+<!-- The lang attribute tells browsers and screen readers the page is in English -->
 <html lang="en">
 
+<!-- HEAD: information about the page that is not shown directly (title, fonts, stylesheet) -->
 <head>
+  <!-- Use UTF-8 so symbols and emoji display correctly -->
   <meta charset="UTF-8">
+  <!-- Makes the page scale properly on small screens -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Short description shown by search engines -->
   <meta name="description" content="QuickGuide — Upload a PDF, ask a question, get taken straight to the answer.">
+  <!-- Text shown on the browser tab -->
   <title>QuickGuide — PDF Search & Navigation</title>
+  <!-- Tab icon (the file referenced here is not among the tracked files in the repo) -->
   <link rel="icon" href="/static/img/qg-favicon.svg" type="image/svg+xml">
+  <!-- Fonts: connect early to Google Fonts, then load the Nunito font (needs internet) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Our own stylesheet with all the layout and colors -->
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
 
+<!-- BODY: everything the user sees -->
 <body>
 
   <!-- ─── Top Bar ─── -->
   <header class="qg-header" id="qg-header">
     <div class="qg-logo" id="qg-logo">
+      <!-- Round logo drawn as an SVG picture: a circle with the letters QG -->
       <svg viewBox="0 0 40 40" class="qg-logo-icon">
         <circle cx="20" cy="20" r="18" fill="var(--accent)" />
         <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="800"
@@ -26,18 +43,23 @@
       <span class="qg-logo-text">QuickGuide</span>
     </div>
 
+    <!-- Document chooser: a dropdown of uploaded PDFs plus an upload button -->
     <div class="qg-doc-selector" id="qg-doc-selector">
       <label for="doc-select" class="qg-doc-label">Document:</label>
+      <!-- Dropdown filled in by app.js with the uploaded documents -->
       <select id="doc-select" class="qg-select">
         <option value="">— Select a document —</option>
       </select>
+      <!-- Clicking this opens the file picker (wired up in app.js) -->
       <button id="btn-upload" class="qg-btn qg-btn-primary" title="Upload a new PDF">
         <span class="qg-btn-icon">📄</span> Select a Document
       </button>
+      <!-- Hidden file input; it only accepts .pdf files -->
       <input type="file" id="file-input" accept=".pdf" style="display:none">
     </div>
 
     <div class="qg-header-actions">
+      <!-- Delete button; hidden until a document is selected -->
       <button id="btn-delete-doc" class="qg-btn qg-btn-danger" title="Delete selected document" style="display:none">
         🗑️ Delete
       </button>
@@ -51,16 +73,19 @@
     <aside class="qg-panel qg-search-panel" id="qg-search-panel">
 
       <!-- Tabs -->
+      <!-- Two tab buttons that switch between the search view and the highlights view -->
       <div class="qg-tabs" id="qg-tabs">
         <button class="qg-tab active" data-target="search-view">Search</button>
         <button class="qg-tab" data-target="highlights-view">My Highlights</button>
       </div>
 
+      <!-- Search tab content (visible by default) -->
       <div id="search-view" class="qg-tab-content active">
         <!-- Search Box -->
         <div class="qg-search-box" id="qg-search-box">
           <h2 class="qg-panel-title" style="display:none">🔍 Search</h2>
           <div class="qg-search-input-wrap">
+            <!-- Where the user types a question; pressing Enter also searches -->
             <input type="text" id="search-input" class="qg-input" placeholder="Ask a question about your document..."
               autocomplete="off">
             <button id="btn-search" class="qg-btn qg-btn-accent" title="Search (Enter)">Search</button>
@@ -71,6 +96,7 @@
         </div>
 
         <!-- Results List -->
+        <!-- Result cards are placed in here by app.js -->
         <div class="qg-results" id="qg-results">
           <div class="qg-empty-state" id="empty-state">
             <div class="qg-empty-icon">📖</div>
@@ -80,6 +106,7 @@
         </div>
       </div>
 
+      <!-- My Highlights tab content (hidden until its tab is clicked) -->
       <div id="highlights-view" class="qg-tab-content" style="display:none; flex-direction:column; height: 100%;">
         <div class="qg-results" id="qg-highlights-list" style="flex:1">
           <div class="qg-empty-state" id="empty-highlights-state">
@@ -90,6 +117,7 @@
       </div>
 
       <!-- Highlight Toolbar -->
+      <!-- Toolbar for stepping through matches and choosing a highlight color; hidden until there are matches -->
       <div class="qg-highlight-toolbar" id="qg-highlight-toolbar" style="display:none">
         <div class="qg-match-nav">
           <button id="btn-prev-match" class="qg-btn qg-btn-sm" title="Previous match (Ctrl+←)">◀</button>
@@ -98,8 +126,10 @@
         </div>
         <div class="qg-color-picker-wrap">
           <label for="highlight-color" class="qg-color-label">Highlight Color:</label>
+          <!-- Native color picker -->
           <input type="color" id="highlight-color" value="#FFE066" class="qg-color-picker"
             title="Change highlight color">
+          <!-- Quick-pick color buttons; each stores its color in data-color -->
           <div class="qg-color-presets">
             <button class="qg-color-swatch" data-color="#FFE066" title="Yellow" style="background:#FFE066"></button>
             <button class="qg-color-swatch" data-color="#A8E6CF" title="Green" style="background:#A8E6CF"></button>
@@ -113,6 +143,7 @@
 
     <!-- Right Panel: PDF Viewer -->
     <section class="qg-viewer" id="qg-viewer">
+      <!-- Welcome message shown before any document is open -->
       <div class="qg-viewer-placeholder" id="viewer-placeholder">
         <div class="qg-placeholder-content">
           <svg viewBox="0 0 120 120" class="qg-placeholder-icon">
@@ -129,11 +160,13 @@
           </ol>
         </div>
       </div>
+      <!-- Scroll area that will hold the PDF pages -->
       <div id="pdf-container" class="qg-pdf-scroll-container" style="display:none">
         <!-- Dynamic .qg-page-wrapper elements will be injected here by JS -->
       </div>
 
       <!-- Floating Page Indicator -->
+      <!-- Small badge that shows the current page number -->
       <div id="floating-page-indicator" class="qg-floating-indicator" style="display:none">
         Page 1 of 1
       </div>
@@ -141,6 +174,7 @@
   </main>
 
   <!-- ─── Upload Progress Modal ─── -->
+  <!-- Pop-up shown while a PDF is uploading and being indexed -->
   <div class="qg-modal-overlay" id="progress-modal" style="display:none">
     <div class="qg-modal">
       <h3>📥 Uploading & Indexing</h3>
@@ -154,7 +188,9 @@
   <!-- ─── Toast Container ─── -->
   <div id="toast-container" class="qg-toast-container"></div>
 
+  <!-- Load the PDF.js library (from a CDN, so internet is needed) as an ES module -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+  <!-- Our own JavaScript that makes the page work -->
   <script src="/static/js/app.js" type="module"></script>
 </body>
 
