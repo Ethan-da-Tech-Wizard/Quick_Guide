@@ -6,6 +6,18 @@
 #          indices using FAISS (IndexFlatIP) with automatic L2 normalization for
 #          cosine similarity, alongside an in-memory NumPy fallback mode.
 #          Persists indices and ID mapping dictionaries to disk.
+#
+# How it fits the app: services/documents.py creates a store per uploaded PDF and calls
+#   add() with the chunk embeddings produced by services/embedder.py; services/search.py
+#   calls search() with a query embedding and maps the returned chunk ids back to SQLite
+#   rows. Deleting a document calls delete_store().
+# Inputs/outputs: add() takes chunk ids + an (n, EMBEDDING_DIM) float32 matrix; search()
+#   returns [(chunk_id, cosine_score)] best-first. Files live under VECTOR_DIR.
+# Design decisions: IndexFlatIP on L2-normalized vectors = exact cosine similarity with
+#   no training step; one index per document keeps deletes trivial (remove three files).
+# Known limits: switching between FAISS and the NumPy fallback strands the other mode's
+#   files; add() rewrites the whole index every call; no locking, so one process only.
+# Tests: tests/test_vector_store.py (run with `python -m pytest tests`).
 # ==============================================================================
 
 import logging
@@ -33,6 +45,13 @@ except ImportError:
 class VectorStore:
     """
     Manages vector index persistence and nearest-neighbor search for a single document.
+
+    Attributes:
+        document_id: SQLite id of the document this index belongs to.
+        index_path / map_path: On-disk locations of the FAISS index and the id map.
+        chunk_ids: chunk_ids[row] is the SQLite chunk id stored at index row `row`.
+        index: The faiss index (FAISS mode only; None until the first add).
+        _vectors: Row-normalized matrix used instead of `index` in fallback mode.
     """
     def __init__(self, document_id: int):
         self.document_id = document_id
@@ -47,14 +66,19 @@ class VectorStore:
         self._load()
 
     def _load(self):
-        """Loads index files and chunk ID mappings from disk if present."""
-        # Step 1: Load chunk ID mapping list
+        """Loads index files and chunk ID mappings from disk if present.
+
+        Side effects:
+            Populates self.chunk_ids, and self.index (FAISS) or self._vectors (fallback).
+            Missing files are not an error: the store simply starts empty.
+        """
+        # The map is loaded first because both storage modes need it to translate rows to chunk ids.
         if self.map_path.exists():
             # The JSON map must be read in both modes, so it is loaded first.
             with open(self.map_path, "r") as f:
                 self.chunk_ids = json.load(f)
 
-        # Step 2: Load FAISS index or NumPy vector array
+        # Pick the loader matching the active mode; see the note below about stranded files.
         if HAS_FAISS and self.index_path.exists():
             self.index = faiss.read_index(str(self.index_path))
         # Note: a store created in FAISS mode will not read .npy files and vice versa, so
@@ -70,14 +94,18 @@ class VectorStore:
 
         Args:
             chunk_ids (list[int]): Database primary keys for the chunks.
-            vectors (np.ndarray): Dense embedding matrix.
+            vectors (np.ndarray): Dense embedding matrix, shape (len(chunk_ids), EMBEDDING_DIM)
+                (or a single 1-D vector). NOTE: in FAISS mode normalize_L2 modifies this array in place.
+
+        Side effects:
+            Extends the in-memory index and rewrites the on-disk files via _save().
         """
-        # Single vectors are promoted to a 1xN matrix.
-        # Step 1: Ensure 2D matrix shape
+        # FAISS and the normalization code below both require a 2-D (rows x dims) matrix, so a
+        # single vector is promoted to 1xN.
         if vectors.ndim == 1:
             vectors = vectors.reshape(1, -1)
 
-        # Step 2: Ingest into FAISS or accumulate in NumPy array
+        # Both branches end with unit-length rows, so inner product == cosine similarity at query time.
         if HAS_FAISS:
             # IndexFlatIP is an exact (brute-force) inner-product index with no training step.
             if self.index is None:
@@ -99,8 +127,8 @@ class VectorStore:
             else:
                 self._vectors = np.vstack([self._vectors, vectors])
 
-        # Persist after every add so the index survives a restart.
-        # Step 3: Record IDs and persist to disk
+        # chunk_ids must grow in the same order as the vector rows or search results would map to
+        # the wrong chunks. Persisting after every add trades speed for crash-safety: a restart never loses vectors.
         self.chunk_ids.extend(chunk_ids)
         self._save()
 
@@ -114,14 +142,16 @@ class VectorStore:
 
         Returns:
             list[tuple[int, float]]: List of (chunk_id, score) tuples in descending score order.
+                Scores are cosine similarities in [-1, 1]; an empty list means the store has no vectors.
         """
+        # An empty store (or one never added to) cannot match anything; this also avoids FAISS errors on empty indexes.
         if not self.chunk_ids:
             return []
 
         # astype(float32) with reshape(1, -1) produces the 2-D float32 batch FAISS expects.
         query_vector = query_vector.reshape(1, -1).astype(np.float32)
 
-        # Step 1: Execute search using FAISS if available
+        # Preferred path: exact search inside FAISS.
         if HAS_FAISS and self.index is not None:
             faiss.normalize_L2(query_vector)
             # k cannot exceed the number of stored vectors.
@@ -133,7 +163,7 @@ class VectorStore:
                 if idx >= 0 and idx < len(self.chunk_ids):
                     results.append((self.chunk_ids[idx], float(score)))
             return results
-        # Step 2: Fallback to NumPy matrix multiplication
+        # Fallback path (no FAISS): brute-force dot products against the stored unit vectors.
         elif self._vectors is not None:
             # Fallback: dot product of unit vectors = cosine similarity; argsort ascending then
             # reversed gives best-first order.
@@ -149,7 +179,12 @@ class VectorStore:
             return []
 
     def _save(self):
-        """Serializes current index and mapping metadata to disk."""
+        """Serializes current index and mapping metadata to disk.
+
+        Side effects:
+            Creates VECTOR_DIR if needed and overwrites the map plus the index/.npy file.
+            Not atomic: a crash mid-write can leave a truncated file (known limit).
+        """
         # The map is always written; the vectors go to FAISS or .npy depending on the mode.
         VECTOR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -163,7 +198,12 @@ class VectorStore:
             np.save(str(npy_path), self._vectors)
 
     def delete(self):
-        """Removes all on-disk index artifacts associated with this document."""
+        """Removes all on-disk index artifacts associated with this document.
+
+        Side effects:
+            Deletes the .faiss, .map and .npy files if present; the in-memory state is left
+            as is (delete_store() also drops the cached instance).
+        """
         # Remove every artifact that could exist, regardless of which mode produced it.
         for path in [self.index_path, self.map_path,
                      VECTOR_DIR / f"doc_{self.document_id}.npy"]:
@@ -176,13 +216,24 @@ class VectorStore:
 _stores: dict[int, VectorStore] = {}
 
 def get_store(document_id: int) -> VectorStore:
-    """Retrieve or cache VectorStore instance for a given document."""
+    """Retrieve or cache VectorStore instance for a given document.
+
+    Args:
+        document_id: SQLite id of the document.
+
+    Returns:
+        The process-wide cached VectorStore, creating (and loading from disk) on first use.
+    """
     if document_id not in _stores:
         _stores[document_id] = VectorStore(document_id)
     return _stores[document_id]
 
 def delete_store(document_id: int):
-    """Evict and delete vector index files for a given document."""
+    """Evict and delete vector index files for a given document.
+
+    Args:
+        document_id: SQLite id of the document whose index should disappear.
+    """
     # Evicting from the cache first ensures no stale in-memory index remains. If the store
     # was never loaded, a temporary instance is created just to locate and delete the files.
     store = _stores.pop(document_id, None)
