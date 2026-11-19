@@ -1003,8 +1003,12 @@ els.docSelect.addEventListener('change', (e) => selectDocument(e.target.value));
 
 // Upload
 els.btnUpload.addEventListener('click', () => els.fileInput.click());
+// The upload button only forwards its click to this hidden input. After the upload starts, the input's value is cleared
+// because the browser fires `change` only when the selection differs: without the reset, picking the same file again
+// (for example after deleting it) would do nothing.
 els.fileInput.addEventListener('change', (e) => {
   if (e.target.files.length > 0) {
+    // Only the first file is used; the input has no `multiple` attribute, so at most one file arrives anyway.
     uploadDocument(e.target.files[0]);
     e.target.value = '';
   }
@@ -1015,6 +1019,7 @@ els.btnDeleteDoc.addEventListener('click', deleteDocument);
 
 // Search
 els.btnSearch.addEventListener('click', performSearch);
+// Enter submits the search (same handler as the button); the hint in the button's title says so.
 els.searchInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') performSearch();
 });
@@ -1024,6 +1029,7 @@ els.btnPrevMatch.addEventListener('click', prevMatch);
 els.btnNextMatch.addEventListener('click', nextMatch);
 
 // Highlight color
+// 'input' (not 'change') fires continuously while the picker is dragged, so the overlay colour updates live.
 els.highlightColor.addEventListener('input', (e) => changeHighlightColor(e.target.value));
 document.querySelectorAll('.qg-color-swatch').forEach(swatch => {
   swatch.addEventListener('click', () => changeHighlightColor(swatch.dataset.color));
@@ -1047,6 +1053,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     prevMatch();
   }
+  // clearResults() resets the search UI and overlays; re-rendering the current page then redraws it without them.
   // Esc: Clear results
   if (e.key === 'Escape') {
     clearResults();
@@ -1069,5 +1076,6 @@ window.addEventListener('resize', () => {
 // ══════════════════════════════════════════════════
 
 // Startup: populate the document list, and initialise the colour controls.
+// The two calls below are the only startup work; everything else runs in response to events.
 loadDocuments();
 changeHighlightColor('#FFE066');
