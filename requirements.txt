@@ -1,8 +1,15 @@
+# Web framework and ASGI server (src/main.py serves the API and the static UI).
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
+# Needed by FastAPI to parse multipart/form-data, i.e. PDF uploads.
 python-multipart>=0.0.9
+# Async file I/O helper. Nothing under src/ imports it directly today (it may be needed indirectly by the web stack).
 aiofiles>=24.1.0
+# PDF text extraction (imported as fitz in src/services/pdf_parser.py). Note its AGPL / commercial dual license; see docs/LICENSE_REVIEW.md.
 PyMuPDF>=1.24.0
+# Sentence embedding model used for semantic search (src/services/embedder.py).
 sentence-transformers>=3.0.0
+# Vector index (src/services/vector_store.py); the app falls back to NumPy if FAISS cannot be imported.
 faiss-cpu>=1.8.0
+# Capped below 2.0 on purpose: check compatibility of the other packages before raising the cap.
 numpy>=1.26.0,<2.0.0

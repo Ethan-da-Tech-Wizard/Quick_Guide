@@ -1,15 +1,21 @@
+# EditorConfig (https://editorconfig.org): editors that support it apply these formatting rules automatically.
+# `root = true` stops the editor from searching parent directories for more settings.
 root = true
 
+# Defaults for every file: UTF-8, Unix line endings, one trailing newline, no trailing spaces
+# (keeps diffs small and avoids CRLF noise between Windows and macOS/Linux contributors).
 [*]
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+# Python follows PEP 8: four-space indentation.
 [*.py]
 indent_style = space
 indent_size = 4
 
+# Front-end and config/docs files use two spaces, matching the existing JS/CSS/HTML style.
 [*.{js,html,css,json,yml,yaml,md}]
 indent_style = space
 indent_size = 2
