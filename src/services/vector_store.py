@@ -70,7 +70,11 @@ class VectorStore:
         if HAS_FAISS:
             if self.index is None:
                 self.index = faiss.IndexFlatIP(EMBEDDING_DIM)
-            faiss.normalize_L2(vectors)
+            # Mathematical Equivalence: Cosine Similarity via L2-Normalized Inner Product
+        # Cosine similarity is defined as (A · B) / (||A|| * ||B||).
+        # By pre-normalizing all vectors to unit L2 length (||V||_2 = 1.0), the denominator becomes 1.0.
+        # Consequently, FAISS IndexFlatIP (Inner Product) computes exact cosine similarity via fast BLAS matrix multiply.
+        faiss.normalize_L2(vectors)
             self.index.add(vectors)
         else:
             norms = np.linalg.norm(vectors, axis=1, keepdims=True)
