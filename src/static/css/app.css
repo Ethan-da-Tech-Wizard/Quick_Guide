@@ -9,37 +9,52 @@
  * ============================================================================== */
 
 /* ── CSS Custom Properties ─────────────────── */
+/* Design tokens. Every colour, radius, shadow and the font stack is defined once here and consumed with var(--name)
+   elsewhere, so re-theming the app means editing only this block. Palette: warm cream backgrounds, terracotta accent,
+   slate-blue primary, sage green for success. */
 :root {
   /* Warm palette */
+  /* Page and surface colours, lightest to darkest: --bg is the page, --surface cards/panels, --surface-2/-3 progressively
+     darker tints used for hover states, tab bars and inputs. */
   --bg: #FFF8F0;
   --surface: #FFFFFF;
   --surface-2: #FFF1E6;
   --surface-3: #FFE8D6;
+  /* Text colours: body, secondary (labels), and the lightest tone for hints and placeholders. */
   --text: #2D2A32;
   --text-muted: #6B6575;
   --text-light: #9B93A8;
+  /* Accent (terracotta): primary call to action, focus rings and active states; -hover is the pressed/hover shade, -light a pale tint. */
   --accent: #E07A5F;
   --accent-hover: #C85A3F;
   --accent-light: #FCEADE;
+  /* Primary (slate blue): headings and the main button colour; success/danger are semantic colours for toasts and delete. */
   --primary: #3D405B;
   --primary-hover: #2D2F45;
   --success: #81B29A;
   --danger: #E07A5F;
   --danger-hover: #C85A3F;
+  /* Default search-match colour; this mirrors the initial value of the colour picker in index.html and app.js. */
   --highlight-default: #FFE066;
+  /* Hairline border colour and the three elevation shadows (sm = header, md = hover cards, lg = pages/modals). */
   --border: #E8DDD3;
   --shadow-sm: 0 1px 3px rgba(45, 42, 50, 0.06);
   --shadow-md: 0 4px 12px rgba(45, 42, 50, 0.08);
   --shadow-lg: 0 8px 24px rgba(45, 42, 50, 0.12);
+  /* Corner radii scale used by buttons, cards and modals so rounding stays consistent. */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+  /* Nunito is the intended face; the fallbacks are system UI fonts, so the app still looks right offline. */
   --font: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* One shared transition duration/easing keeps all hover and focus animations feeling the same. */
   --transition: 0.2s ease;
 }
 
 /* ── Reset & Base ──────────────────────────── */
+/* Universal reset: border-box sizing makes width include padding/border (so the fixed-width panels below add up), and
+   zeroing margin/padding removes browser defaults so spacing comes only from this file. */
 *,
 *::before,
 *::after {
@@ -48,12 +63,15 @@
   padding: 0;
 }
 
+/* 16px root so rem units (used for most font sizes) map to a predictable size; smoothing makes text render thinner on macOS. */
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Full-viewport flex column: header on top, .qg-main fills the rest. overflow:hidden stops the page itself from scrolling;
+   only the results list and the PDF container scroll internally. */
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -65,6 +83,8 @@ body {
 }
 
 /* ── Header ────────────────────────────────── */
+/* Top bar: logo, document selector and action buttons in one flex row. z-index 100 keeps its shadow above the panels;
+   flex-wrap lets it fold to two rows on narrow screens (see the responsive section). */
 .qg-header {
   display: flex;
   align-items: center;
@@ -77,6 +97,7 @@ body {
   flex-wrap: wrap;
 }
 
+/* Logo cluster never shrinks (flex-shrink:0), so the selector next to it absorbs any squeeze. */
 .qg-logo {
   display: flex;
   align-items: center;
@@ -84,6 +105,7 @@ body {
   flex-shrink: 0;
 }
 
+/* Soft accent-coloured glow under the inline SVG logo. */
 .qg-logo-icon {
   width: 36px;
   height: 36px;
@@ -97,6 +119,7 @@ body {
   letter-spacing: -0.5px;
 }
 
+/* Document label + dropdown + upload button. flex:1 takes all spare header width; min-width stops it collapsing. */
 .qg-doc-selector {
   display: flex;
   align-items: center;
@@ -112,6 +135,7 @@ body {
   white-space: nowrap;
 }
 
+/* Document dropdown styled to match inputs (2px border, rounded). max-width keeps very long filenames from stretching the header. */
 .qg-select {
   flex: 1;
   padding: 8px 12px;
@@ -127,6 +151,7 @@ body {
   max-width: 350px;
 }
 
+/* Custom focus ring: the default outline is replaced by an accent border so keyboard focus stays visible. */
 .qg-select:focus {
   outline: none;
   border-color: var(--accent);
@@ -138,6 +163,8 @@ body {
 }
 
 /* ── Buttons ───────────────────────────────── */
+/* Shared button base: inline-flex centres icon + label; `transition: all` animates colour and shadow changes;
+   white-space:nowrap keeps labels on one line. Colour comes from the modifier classes below. */
 .qg-btn {
   display: inline-flex;
   align-items: center;
@@ -153,10 +180,12 @@ body {
   white-space: nowrap;
 }
 
+/* Tiny press-down scale gives tactile feedback on click. */
 .qg-btn:active {
   transform: scale(0.97);
 }
 
+/* Primary action (e.g. upload): slate-blue fill. */
 .qg-btn-primary {
   background: var(--primary);
   color: white;
@@ -167,6 +196,7 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Prominent action (Search): terracotta fill. */
 .qg-btn-accent {
   background: var(--accent);
   color: white;
@@ -177,6 +207,7 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Outline-only red button (Delete) so the destructive action is visible but not shouting; fills on hover. */
 .qg-btn-danger {
   background: transparent;
   color: var(--danger);
@@ -188,6 +219,7 @@ body {
   color: white;
 }
 
+/* Compact secondary button used for previous/next match; overrides padding, font size and colours of .qg-btn. */
 .qg-btn-sm {
   padding: 6px 12px;
   font-size: 0.8rem;
@@ -207,6 +239,8 @@ body {
 }
 
 /* ── Main Layout ───────────────────────────── */
+/* Two-column workspace (search panel left, viewer right). height: calc(100vh - 57px) subtracts the header's rendered
+   height (about 57px) so the columns fill exactly the rest of the window; if the header grows, update this number. */
 .qg-main {
   display: flex;
   flex: 1;
@@ -215,6 +249,8 @@ body {
 }
 
 /* ── Search Panel (Left) ───────────────────── */
+/* Left column: fixed 380px (never below 320px). It is itself a flex column so the tab bar stays put while its
+   content scrolls. overflow:hidden contains the children's own scrollers. */
 .qg-search-panel {
   width: 380px;
   min-width: 320px;
@@ -226,12 +262,14 @@ body {
 }
 
 /* ── Tabs ──────────────────────────────────── */
+/* Tab strip (Search / My Highlights). The JS in app.js toggles the `active` class on .qg-tab and .qg-tab-content. */
 .qg-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
 }
 
+/* A tab button: transparent with a 3px transparent bottom border, so the active state can colour the border without shifting the layout. */
 .qg-tab {
   flex: 1;
   padding: 12px;
@@ -251,12 +289,14 @@ body {
   background: var(--surface);
 }
 
+/* Active tab: accent text and bottom border, white background (class added/removed by app.js). */
 .qg-tab.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
   background: var(--surface);
 }
 
+/* Tab body fills the remaining panel height; children scroll inside. */
 .qg-tab-content {
   display: flex;
   flex-direction: column;
@@ -271,6 +311,7 @@ body {
   margin-bottom: 10px;
 }
 
+/* Search input area above the results, separated from them by a border. */
 .qg-search-box {
   padding: 16px;
   border-bottom: 1px solid var(--border);
@@ -281,6 +322,7 @@ body {
   gap: 8px;
 }
 
+/* Text input; the pale surface-2 background turns white on focus. */
 .qg-input {
   flex: 1;
   padding: 10px 14px;
@@ -293,6 +335,7 @@ body {
   transition: all var(--transition);
 }
 
+/* Focus state: accent border plus a 3px soft halo (box-shadow) in place of the removed default outline. */
 .qg-input:focus {
   outline: none;
   border-color: var(--accent);
@@ -304,6 +347,7 @@ body {
   color: var(--text-light);
 }
 
+/* Small italic helper line under the search box. */
 .qg-hint {
   margin-top: 8px;
   font-size: 0.75rem;
@@ -312,12 +356,15 @@ body {
 }
 
 /* ── Results ───────────────────────────────── */
+/* Scrollable list of result cards: flex:1 takes the remaining height and overflow-y:auto shows a scrollbar only when needed
+   (its thin scrollbar is styled in the Scrollbar section). */
 .qg-results {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
 }
 
+/* Centered placeholder shown before a search runs or when a list has no items. */
 .qg-empty-state {
   display: flex;
   flex-direction: column;
@@ -340,6 +387,7 @@ body {
 }
 
 /* Result Card */
+/* One search hit. The transparent 2px border reserves space so the hover/active border does not shift neighbouring cards. */
 .qg-result-card {
   padding: 12px 14px;
   margin-bottom: 8px;
@@ -350,12 +398,14 @@ body {
   transition: all var(--transition);
 }
 
+/* Hover: accent border, deeper shadow and a 1px lift. */
 .qg-result-card:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
+/* Selected result (class set by app.js when a card is clicked or navigated to): accent border and tinted background. */
 .qg-result-card.active {
   border-color: var(--accent);
   background: var(--accent-light);
@@ -368,6 +418,7 @@ body {
   margin-bottom: 6px;
 }
 
+/* Page-number pill shown in each card header. */
 .qg-result-page {
   font-size: 0.8rem;
   font-weight: 700;
@@ -377,12 +428,14 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* Similarity score label (small, muted). */
 .qg-result-score {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-light);
 }
 
+/* Matched text excerpt; capped at 150px with its own scroll so one long chunk cannot push other results off screen. */
 .qg-result-snippet {
   font-size: 0.82rem;
   color: var(--text);
@@ -392,6 +445,7 @@ body {
   padding-right: 4px;
 }
 
+/* 'Go to page' link inside a card. */
 .qg-result-link {
   display: inline-flex;
   align-items: center;
@@ -410,6 +464,7 @@ body {
 }
 
 /* ── Highlight Toolbar ─────────────────────── */
+/* Footer of the left panel with match navigation and colour choice; hidden (inline display:none) until a search has results. */
 .qg-highlight-toolbar {
   padding: 12px 16px;
   border-top: 1px solid var(--border);
@@ -423,6 +478,7 @@ body {
   margin-bottom: 10px;
 }
 
+/* 'Match 3 of 12' text; flex:1 and centering place it between the previous/next buttons. */
 .qg-match-counter {
   font-size: 0.82rem;
   font-weight: 700;
@@ -444,6 +500,7 @@ body {
   color: var(--text-muted);
 }
 
+/* Native colour input squeezed to a 32px square; padding/background reset hide the browser's default chrome. */
 .qg-color-picker {
   width: 32px;
   height: 32px;
@@ -459,6 +516,7 @@ body {
   gap: 4px;
 }
 
+/* Round preset colour button (inline background set in HTML). Hover enlarges it; `.active` marks the selected colour. */
 .qg-color-swatch {
   width: 24px;
   height: 24px;
@@ -480,6 +538,8 @@ body {
 }
 
 /* ── PDF Viewer (Right) ────────────────────── */
+/* Right column: relative positioning anchors the floating page indicator; the placeholder and the PDF container are stacked children
+   of which app.js shows exactly one. */
 .qg-viewer {
   flex: 1;
   display: flex;
@@ -489,6 +549,7 @@ body {
   position: relative;
 }
 
+/* Empty-state screen shown until a document is chosen. */
 .qg-viewer-placeholder {
   display: flex;
   align-items: center;
@@ -502,6 +563,7 @@ body {
   max-width: 420px;
 }
 
+/* Gently bobbing illustration; the `float` keyframes below move it 8px up and down every 3s. */
 .qg-placeholder-icon {
   width: 100px;
   height: 100px;
@@ -509,6 +571,7 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+/* Bobbing animation for the placeholder icon (up 8px at the 50% mark, back at 0%/100%). */
 @keyframes float {
 
   0%,
@@ -534,6 +597,7 @@ body {
   margin-bottom: 20px;
 }
 
+/* Numbered how-to list using a CSS counter: the `li` rule increments `step` and ::before prints it inside an accent circle. */
 .qg-steps {
   text-align: left;
   list-style: none;
@@ -571,6 +635,8 @@ body {
 }
 
 /* PDF container */
+/* Scroll area holding every rendered PDF page, stacked vertically with a 20px gap on a darker beige backdrop so white pages stand out.
+   It is also the element whose scrollbar is styled below; app.js shows it only once a document is loaded. */
 .qg-pdf-scroll-container {
   flex: 1;
   position: relative;
@@ -584,6 +650,8 @@ body {
   gap: 20px;
 }
 
+/* One PDF page: position:relative makes it the coordinate system for the absolutely positioned text and highlight layers
+   that sit on top of the canvas. */
 .qg-page-wrapper {
   position: relative;
   box-shadow: var(--shadow-lg);
@@ -593,16 +661,21 @@ body {
   transition: opacity var(--transition);
 }
 
+/* Added by app.js while a page's canvas is still rendering (removed when done): dimmed, with an inline SVG spinner as the background.
+   The %23 in the data URI is an escaped # because a raw # would end the URL. */
 .qg-page-wrapper.loading {
   opacity: 0.5;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23E07A5F" stroke-width="4" opacity="0.2"/><path d="M25 5 A 20 20 0 0 1 45 25" fill="none" stroke="%23E07A5F" stroke-width="4"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></path></svg>') center center no-repeat white;
 }
 
+/* display:block removes the small inline-element gap beneath a canvas. */
 .qg-pdf-canvas {
   display: block;
 }
 
 /* PDF.js Text Layer */
+/* Invisible PDF.js text layer stacked over the canvas so text can be selected and copied. It covers the whole page
+   (top/left/right/bottom 0); opacity 0.2 lets the native selection colour show faintly. */
 .qg-text-layer {
   position: absolute;
   left: 0;
@@ -616,6 +689,8 @@ body {
   pointer-events: auto;
 }
 
+/* Each PDF.js text run is absolutely positioned and sized by PDF.js. color:transparent !important hides the glyphs (the canvas
+   already draws them) and !important beats PDF.js's inline styles; transform-origin keeps its scale transforms anchored at the top left. */
 .qg-text-layer span {
   color: transparent !important;
   position: absolute;
@@ -624,11 +699,13 @@ body {
   transform-origin: 0% 0%;
 }
 
+/* Line-break elements must not take up space: every span is positioned absolutely. */
 .qg-text-layer br {
   display: none;
 }
 
 /* Highlight Layer */
+/* Overlay for search-match rectangles. pointer-events:none lets clicks and text selection pass through to the text layer below. */
 .qg-highlight-layer {
   position: absolute;
   top: 0;
@@ -638,6 +715,8 @@ body {
   height: 100%;
 }
 
+/* A single match box; semi-transparent so the text beneath stays readable. app.js sets left/top/width/height
+   and may override the colour inline from the colour picker. */
 .qg-highlight-rect {
   position: absolute;
   background: rgba(255, 224, 102, 0.4);
@@ -647,6 +726,7 @@ body {
   pointer-events: none;
 }
 
+/* The current match (the one 'Match n of m' points at): stronger fill, accent border and a glow. */
 .qg-highlight-rect.active-match {
   background: rgba(255, 224, 102, 0.6);
   border-color: var(--accent);
@@ -654,6 +734,7 @@ body {
 }
 
 /* Floating Page Indicator */
+/* 'Page x of y' pill pinned to the viewer's top-right. z-index 10 keeps it above the pages; it fades slightly until hovered. */
 .qg-floating-indicator {
   position: absolute;
   top: 16px;
@@ -676,6 +757,8 @@ body {
 }
 
 /* ── Modal ─────────────────────────────────── */
+/* Full-screen dimmed backdrop (inset:0) for the upload-progress dialog. z-index 1000 is above everything except toasts (2000);
+   the blur softens the page behind it. */
 .qg-modal-overlay {
   position: fixed;
   inset: 0;
@@ -687,6 +770,7 @@ body {
   backdrop-filter: blur(4px);
 }
 
+/* Dialog card centered by the overlay's flex layout; width 90% with a 420px cap works on phones and desktops. */
 .qg-modal {
   background: var(--surface);
   border-radius: var(--radius-xl);
@@ -704,6 +788,7 @@ body {
   margin-bottom: 16px;
 }
 
+/* Track of the progress bar; overflow:hidden clips the fill to the rounded ends. */
 .qg-progress-bar-wrap {
   width: 100%;
   height: 10px;
@@ -713,6 +798,7 @@ body {
   margin-bottom: 12px;
 }
 
+/* Fill whose inline width (set by app.js as upload/index progress arrives) animates over 0.5s. */
 .qg-progress-bar {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--success));
@@ -726,6 +812,7 @@ body {
 }
 
 /* ── Toast ──────────────────────────────────── */
+/* Fixed bottom-right stack for toast notifications. z-index 2000 puts toasts above the modal, so errors stay visible during uploads. */
 .qg-toast-container {
   position: fixed;
   bottom: 20px;
@@ -736,6 +823,7 @@ body {
   gap: 8px;
 }
 
+/* One notification; the slideIn animation runs once when app.js appends it (it picks the class `error` or `success`). */
 .qg-toast {
   padding: 12px 20px;
   border-radius: var(--radius-md);
@@ -757,6 +845,7 @@ body {
   background: var(--success);
 }
 
+/* Toast entrance: slide in from the right while fading in (300ms). */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -770,6 +859,7 @@ body {
 }
 
 /* ── Scrollbar ─────────────────────────────── */
+/* Thin 6px WebKit scrollbars for the two scrollable regions. Firefox ignores these ::-webkit rules and shows its default scrollbar. */
 .qg-results::-webkit-scrollbar,
 .qg-pdf-scroll-container::-webkit-scrollbar {
   width: 6px;
@@ -792,6 +882,7 @@ body {
 }
 
 /* ── Loading spinner ───────────────────────── */
+/* Inline loading ring used inside the Search button while a query runs: a bordered circle with one coloured side rotated by the `spin` animation. */
 .qg-spinner {
   display: inline-block;
   width: 18px;
@@ -809,6 +900,8 @@ body {
 }
 
 /* ── Responsive ────────────────────────────── */
+/* Tablet and narrow-window layout: stack the search panel above the viewer (column direction), let the panel use the full width
+   but at most 45% of the viewport height, and hide the logo text and the 'Document:' label to save header space. */
 @media (max-width: 1024px) {
   .qg-main {
     flex-direction: column;
@@ -849,6 +942,7 @@ body {
   }
 }
 
+/* Phone layout: shorter search panel (40vh), tighter padding, and the search input and button stack vertically with a full-width button. */
 @media (max-width: 600px) {
   .qg-search-panel {
     max-height: 40vh;
