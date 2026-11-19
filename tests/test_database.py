@@ -19,7 +19,14 @@ import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 def test_database_schema():
-    """Test that database schema initializes all required tables and indexes."""
+    """Test that database schema initializes all required tables and indexes.
+
+    Behaviour pinned: the three-table schema (documents, text_chunks, highlights) can be
+    created in a fresh SQLite file and a row inserted into `documents` reads back intact.
+    Why it matters: every service (upload, search, highlights) assumes these tables and
+    their column order; a schema typo would break the app only at runtime.
+    Limit: it checks a copy of the DDL, not src/database.py itself (see comment below).
+    """
     # Create an isolated temporary database file
     # delete=False because the file must be closed before sqlite3 reopens it (required on
     # Windows) and is removed manually in the finally block.
@@ -74,8 +81,9 @@ def test_database_schema():
         assert "text_chunks" in tables
         assert "highlights" in tables
 
+        # Insert with only the NOT NULL columns plus status, so the DEFAULT clauses for
+        # page_count, file_size_bytes and upload_date must fill in the rest.
         # row[1] is the second column (filename), since sqlite3.Row is not configured here.
-        # Step 2: Verify insert and retrieval operations
         conn.execute(
             "INSERT INTO documents (filename, file_path, status) VALUES (?, ?, ?)",
             ("test.pdf", "/tmp/test.pdf", "ready")
@@ -91,7 +99,14 @@ def test_database_schema():
         os.unlink(db_path)
 
 def test_cascade_delete():
-    """Test that deleting a document cascades deletion to chunks and highlights."""
+    """Test that deleting a document cascades deletion to chunks and highlights.
+
+    Behaviour pinned: with PRAGMA foreign_keys=ON, removing a `documents` row also removes
+    its `text_chunks` and `highlights` rows (ON DELETE CASCADE).
+    Why it matters: the app deletes a document with one DELETE statement and relies on the
+    database to clean up chunks and highlights; if the cascade silently stopped working,
+    orphan rows would keep showing up in search results.
+    """
     # Same temp-file pattern as above.
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
@@ -128,22 +143,21 @@ def test_cascade_delete():
         """)
 
         # Arrange: one parent row and one child row in each dependent table.
-        # Step 1: Insert parent document and child chunk/highlight records
         conn.execute("INSERT INTO documents (id, filename, file_path) VALUES (1, 'test.pdf', '/tmp/test.pdf')")
         conn.execute("INSERT INTO text_chunks (document_id, text_content) VALUES (1, 'Hello world')")
         conn.execute("INSERT INTO highlights (document_id, text_content) VALUES (1, 'Hello')")
         conn.commit()
 
-        # Step 2: Verify records are present
+        # Sanity check before the act step: if the children were never inserted, the
+        # post-delete zero counts below would prove nothing.
         assert conn.execute("SELECT COUNT(*) FROM text_chunks").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM highlights").fetchone()[0] == 1
 
         # Act: delete only the parent; the database should remove the children by itself.
-        # Step 3: Delete parent document
         conn.execute("DELETE FROM documents WHERE id = 1")
         conn.commit()
 
-        # Step 4: Verify cascaded deletion eliminated children
+        # Zero rows left means the database, not test code, removed the children.
         assert conn.execute("SELECT COUNT(*) FROM text_chunks").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM highlights").fetchone()[0] == 0
 
