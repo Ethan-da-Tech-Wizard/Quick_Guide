@@ -8,6 +8,8 @@
 #          provides batch encoding as well as single-query inference.
 # ==============================================================================
 
+# sentence_transformers pulls in torch, so importing this module is slow; the model
+# itself is not loaded until the first call to get_model().
 import logging
 from sentence_transformers import SentenceTransformer
 from config import EMBEDDING_MODEL, MODEL_DIR
@@ -15,6 +17,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Cached singleton: loading the transformer takes seconds and hundreds of MB, so it is
+# done at most once per process.
 # Cached singleton model instance
 _model = None
 
@@ -26,9 +30,13 @@ def get_model() -> SentenceTransformer:
     Returns:
         SentenceTransformer: Active sentence encoder instance.
     """
+    # Module-level cache; no lock is used, so two threads racing on the very first call
+    # could both load the model (wasteful but not incorrect).
     global _model
     if _model is None:
         logger.info(f"Loading embedding model: {EMBEDDING_MODEL}...")
+        # cache_folder keeps downloaded weights under data/models so they are reused on later
+        # runs. The first run needs network access to fetch them; afterwards it works offline.
         _model = SentenceTransformer(
             EMBEDDING_MODEL,
             cache_folder=str(MODEL_DIR)
@@ -47,9 +55,12 @@ def embed_texts(texts: list[str], batch_size: int = 32) -> np.ndarray:
     Returns:
         np.ndarray: Matrix of shape (len(texts), EMBEDDING_DIM) as float32.
     """
+    # Called for document chunks. Input order is preserved in the output rows.
     # Step 1: Ensure model is loaded
     model = get_model()
 
+    # normalize_embeddings=True makes every vector unit length, so an inner product between
+    # two vectors equals their cosine similarity (relied on by vector_store).
     # Step 2: Encode texts with L2 normalization enabled
     embeddings = model.encode(
         texts,
@@ -57,6 +68,7 @@ def embed_texts(texts: list[str], batch_size: int = 32) -> np.ndarray:
         show_progress_bar=False,
         normalize_embeddings=True,
     )
+    # float32 is the dtype FAISS requires.
     return np.array(embeddings, dtype=np.float32)
 
 def embed_query(query: str) -> np.ndarray:
@@ -69,6 +81,8 @@ def embed_query(query: str) -> np.ndarray:
     Returns:
         np.ndarray: Vector of shape (EMBEDDING_DIM,) as float32.
     """
+    # Used for search queries. The query is wrapped in a list because encode() works on
+    # batches; the [0] below unwraps the single row.
     # Step 1: Ensure model is loaded
     model = get_model()
 
@@ -76,5 +90,6 @@ def embed_query(query: str) -> np.ndarray:
     embedding = model.encode(
         [query],
         normalize_embeddings=True,
+    # Same normalization as documents so query/document scores are comparable.
     )
     return np.array(embedding, dtype=np.float32)[0]

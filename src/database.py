@@ -8,11 +8,15 @@
 #          documents, text chunks, and highlight annotations.
 # ==============================================================================
 
+# sqlite3 ships with Python, so the app needs no separate database server.
 import sqlite3
 import threading
 from pathlib import Path
+# DB_PATH (data/qg.db) is defined centrally in config.py.
 from config import DB_PATH
 
+# One connection per thread: FastAPI runs synchronous work on a thread pool, and each
+# worker thread lazily gets its own connection kept in the thread-local holder below.
 # Thread-local storage to ensure thread safety across FastAPI async worker threads
 _local = threading.local()
 
@@ -26,10 +30,16 @@ def get_connection() -> sqlite3.Connection:
     # Step 1: Check if an active connection already exists on the current thread
     if not hasattr(_local, "conn") or _local.conn is None:
         # Step 2: Open SQLite connection without cross-thread check limitations
+        # check_same_thread=False relaxes sqlite3's ownership guard. This is harmless because
+        # each connection is only ever used by the thread that created it (via _local).
         _local.conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
         # Step 3: Enable dictionary-like column access via sqlite3.Row
+        # Row objects allow access by column name and convert cleanly with dict(row).
         _local.conn.row_factory = sqlite3.Row
         # Step 4: Configure high-concurrency WAL mode and foreign key cascades
+        # WAL lets readers proceed while a writer is active. foreign_keys must be enabled per
+        # connection in SQLite; without it the ON DELETE CASCADE rules in the schema below
+        # would silently not fire.
         _local.conn.execute("PRAGMA journal_mode=WAL")
         _local.conn.execute("PRAGMA foreign_keys=ON")
     return _local.conn
@@ -41,6 +51,10 @@ def init_db():
     """
     conn = get_connection()
     # Step 1: Execute idempotent DDL statements
+    # Schema overview: documents (one row per PDF), text_chunks (searchable passages linked
+    # by document_id) and highlights (user annotations). Deleting a documents row cascades
+    # to both child tables. upload_date/created_at default to UTC via datetime('now').
+    # The DDL below is a SQL string, so comments cannot be placed inside it.
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

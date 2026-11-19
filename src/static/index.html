@@ -8,6 +8,9 @@
               multi-match navigation toolbar, and saved annotations sidebar.
      ============================================================================== -->
 <!DOCTYPE html>
+<!-- lang=en helps screen readers and hyphenation. The page is a static shell; all behaviour -->
+<!-- lives in /static/js/app.js, and styling in /static/css/app.css. -->
+<!-- Dynamic regions (results, PDF pages, toasts) are empty containers filled by JS. -->
 <html lang="en">
 
 <head>
@@ -18,6 +21,8 @@
   <link rel="icon" href="/static/img/qg-favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Web font from Google Fonts: this is an external network request made when the page loads. -->
+  <!-- With no network the browser falls back to the generic sans-serif defined in CSS. -->
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
@@ -40,13 +45,17 @@
       <select id="doc-select" class="qg-select">
         <option value="">— Select a document —</option>
       </select>
+      <!-- Upload button: opens the hidden file input below through JS. -->
       <button id="btn-upload" class="qg-btn qg-btn-primary" title="Upload a new PDF">
         <span class="qg-btn-icon">📄</span> Select a Document
       </button>
+      <!-- Hidden file input; the visible upload button above triggers it via JS (click()), which -->
+      <!-- avoids the unstyled native file control. accept=.pdf is only a UI hint; the server re-validates. -->
       <input type="file" id="file-input" accept=".pdf" style="display:none">
     </div>
 
     <div class="qg-header-actions">
+      <!-- Delete button starts hidden; app.js shows it only while a document is selected. -->
       <button id="btn-delete-doc" class="qg-btn qg-btn-danger" title="Delete selected document" style="display:none">
         🗑️ Delete
       </button>
@@ -60,16 +69,20 @@
     <aside class="qg-panel qg-search-panel" id="qg-search-panel">
 
       <!-- Tabs -->
+      <!-- Tab buttons: data-target names the panel to show (handled in app.js, Tabs UI section). -->
       <div class="qg-tabs" id="qg-tabs">
         <button class="qg-tab active" data-target="search-view">Search</button>
         <button class="qg-tab" data-target="highlights-view">My Highlights</button>
       </div>
 
+      <!-- Panel 1: semantic search box and results. -->
       <div id="search-view" class="qg-tab-content active">
         <!-- Search Box -->
         <div class="qg-search-box" id="qg-search-box">
           <h2 class="qg-panel-title" style="display:none">🔍 Search</h2>
           <div class="qg-search-input-wrap">
+            <!-- Enter in this field also triggers a search (keydown handler); at least 3 characters -->
+            <!-- are required, matching the server-side validation. -->
             <input type="text" id="search-input" class="qg-input" placeholder="Ask a question about your document..."
               autocomplete="off">
             <button id="btn-search" class="qg-btn qg-btn-accent" title="Search (Enter)">Search</button>
@@ -80,6 +93,8 @@
         </div>
 
         <!-- Results List -->
+        <!-- Result cards are rendered here as HTML strings by displayResults(); the empty state -->
+        <!-- below is hidden once results exist. -->
         <div class="qg-results" id="qg-results">
           <div class="qg-empty-state" id="empty-state">
             <div class="qg-empty-icon">📖</div>
@@ -89,6 +104,8 @@
         </div>
       </div>
 
+      <!-- Panel 2: saved highlights. Hidden by default; inline display:flex is set by JS when the -->
+      <!-- tab is activated. -->
       <div id="highlights-view" class="qg-tab-content" style="display:none; flex-direction:column; height: 100%;">
         <div class="qg-results" id="qg-highlights-list" style="flex:1">
           <div class="qg-empty-state" id="empty-highlights-state">
@@ -99,6 +116,8 @@
       </div>
 
       <!-- Highlight Toolbar -->
+      <!-- Match navigation and colour controls; shown only after a search produced matches. -->
+      <!-- The Ctrl+arrow shortcuts mentioned in the button titles are wired in app.js. -->
       <div class="qg-highlight-toolbar" id="qg-highlight-toolbar" style="display:none">
         <div class="qg-match-nav">
           <button id="btn-prev-match" class="qg-btn qg-btn-sm" title="Previous match (Ctrl+←)">◀</button>
@@ -109,6 +128,7 @@
           <label for="highlight-color" class="qg-color-label">Highlight Color:</label>
           <input type="color" id="highlight-color" value="#FFE066" class="qg-color-picker"
             title="Change highlight color">
+          <!-- Preset swatches carry their colour in data-color (read by JS) and in inline style (for display). -->
           <div class="qg-color-presets">
             <button class="qg-color-swatch" data-color="#FFE066" title="Yellow" style="background:#FFE066"></button>
             <button class="qg-color-swatch" data-color="#A8E6CF" title="Green" style="background:#A8E6CF"></button>
@@ -121,6 +141,7 @@
     </aside>
 
     <!-- Right Panel: PDF Viewer -->
+    <!-- Viewer: shows the welcome placeholder until a document is selected. -->
     <section class="qg-viewer" id="qg-viewer">
       <div class="qg-viewer-placeholder" id="viewer-placeholder">
         <div class="qg-placeholder-content">
@@ -138,10 +159,13 @@
           </ol>
         </div>
       </div>
+      <!-- Scroll container for the document. One .qg-page-wrapper per page is inserted here, each -->
+      <!-- containing a canvas (rendered page), a text layer (selectable text) and a highlight layer. -->
       <div id="pdf-container" class="qg-pdf-scroll-container" style="display:none">
         <!-- Dynamic .qg-page-wrapper elements will be injected here by JS -->
       </div>
 
+      <!-- Small badge showing the page nearest the top of the scroll area. -->
       <!-- Floating Page Indicator -->
       <div id="floating-page-indicator" class="qg-floating-indicator" style="display:none">
         Page 1 of 1
@@ -149,6 +173,8 @@
     </section>
   </main>
 
+  <!-- Modal shown while an upload is being processed. The server does extraction, chunking and -->
+  <!-- embedding before it responds, so the bar is a coarse indicator, not a true percentage. -->
   <!-- ─── Upload Progress Modal ─── -->
   <div class="qg-modal-overlay" id="progress-modal" style="display:none">
     <div class="qg-modal">
@@ -163,7 +189,10 @@
   <!-- ─── Toast Container ─── -->
   <div id="toast-container" class="qg-toast-container"></div>
 
+  <!-- PDF.js 4.0.379 is loaded from cdnjs (external network request). app.js imports the same -->
+  <!-- URL again for its API object; the browser caches the module so it is fetched once. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+  <!-- type=module lets app.js use top-level await and ES imports. Modules run deferred. -->
   <script src="/static/js/app.js" type="module"></script>
 </body>
 
