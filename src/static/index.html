@@ -14,24 +14,31 @@
 <html lang="en">
 
 <head>
+  <!-- Declare UTF-8 first so the emoji and em dashes used in the UI text decode correctly. -->
   <meta charset="UTF-8">
+  <!-- Makes the layout use the device width on phones; the CSS media queries (1024px / 600px) depend on it. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="QuickGuide — Upload a PDF, ask a question, get taken straight to the answer.">
   <title>QuickGuide — PDF Search & Navigation</title>
+  <!-- Favicon served by FastAPI's static mount at /static (see src/main.py). -->
   <link rel="icon" href="/static/img/qg-favicon.svg" type="image/svg+xml">
+  <!-- Warm up the connection to Google Fonts (optional; the page works without it). -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Web font from Google Fonts: this is an external network request made when the page loads. -->
   <!-- With no network the browser falls back to the generic sans-serif defined in CSS. -->
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- App stylesheet: design tokens and all .qg-* rules. Loaded after the font so var(--font) resolves to Nunito when available. -->
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
 
 <body>
 
   <!-- ─── Top Bar ─── -->
+  <!-- Landmark element (role banner for screen readers). IDs here are for CSS/JS hooks; app.js looks up doc-select, btn-upload, file-input and btn-delete-doc. -->
   <header class="qg-header" id="qg-header">
     <div class="qg-logo" id="qg-logo">
+      <!-- Inline SVG logo (no image request). fill=var(--accent) uses the CSS custom property, so it follows the theme. -->
       <svg viewBox="0 0 40 40" class="qg-logo-icon">
         <circle cx="20" cy="20" r="18" fill="var(--accent)" />
         <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="800"
@@ -42,6 +49,8 @@
 
     <div class="qg-doc-selector" id="qg-doc-selector">
       <label for="doc-select" class="qg-doc-label">Document:</label>
+      <!-- Document picker. The single empty option is the 'nothing selected' state; app.js appends one <option> per uploaded PDF
+           and loads the chosen document into the viewer when it changes. -->
       <select id="doc-select" class="qg-select">
         <option value="">— Select a document —</option>
       </select>
@@ -63,9 +72,11 @@
   </header>
 
   <!-- ─── Main Content ─── -->
+  <!-- Main landmark: a two-column flex layout (see .qg-main in the CSS). Left = <aside> search panel, right = <section> viewer. -->
   <main class="qg-main" id="qg-main">
 
     <!-- Left Panel: Search & Results / Highlights -->
+    <!-- Left column. Contains the tab strip, the two tab panels (search / saved highlights) and the match toolbar, in that order. -->
     <aside class="qg-panel qg-search-panel" id="qg-search-panel">
 
       <!-- Tabs -->
@@ -79,6 +90,7 @@
       <div id="search-view" class="qg-tab-content active">
         <!-- Search Box -->
         <div class="qg-search-box" id="qg-search-box">
+          <!-- Panel heading kept in the DOM for structure/accessibility but hidden visually (display:none) because the tabs already label the panel. -->
           <h2 class="qg-panel-title" style="display:none">🔍 Search</h2>
           <div class="qg-search-input-wrap">
             <!-- Enter in this field also triggers a search (keydown handler); at least 3 characters -->
@@ -87,6 +99,7 @@
               autocomplete="off">
             <button id="btn-search" class="qg-btn qg-btn-accent" title="Search (Enter)">Search</button>
           </div>
+          <!-- Example question shown as a hint; plain text, no behaviour attached. -->
           <p class="qg-hint" id="search-hint">
             Try: "What are the rules for compaction thickness?"
           </p>
@@ -126,6 +139,7 @@
         </div>
         <div class="qg-color-picker-wrap">
           <label for="highlight-color" class="qg-color-label">Highlight Color:</label>
+          <!-- Native colour picker. Its initial value #FFE066 matches --highlight-default in the CSS; app.js reads its value for new highlight overlays. -->
           <input type="color" id="highlight-color" value="#FFE066" class="qg-color-picker"
             title="Change highlight color">
           <!-- Preset swatches carry their colour in data-color (read by JS) and in inline style (for display). -->
@@ -145,6 +159,7 @@
     <section class="qg-viewer" id="qg-viewer">
       <div class="qg-viewer-placeholder" id="viewer-placeholder">
         <div class="qg-placeholder-content">
+          <!-- Welcome illustration for the empty viewer state; animated by the float keyframes in the CSS. -->
           <svg viewBox="0 0 120 120" class="qg-placeholder-icon">
             <circle cx="60" cy="60" r="55" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="2" />
             <text x="60" y="72" text-anchor="middle" fill="var(--accent)" font-size="42" font-weight="800"
@@ -152,6 +167,7 @@
           </svg>
           <h2>Welcome to QuickGuide</h2>
           <p>Upload a PDF and ask questions to navigate directly to the answers.</p>
+          <!-- Three-step how-to. The numbers come from a CSS counter on the li elements, not from the list's own numbering. -->
           <ol class="qg-steps">
             <li><strong>Select a Document</strong> — Click the button above to upload a PDF</li>
             <li><strong>Ask a Question</strong> — Type your question in the search box</li>
@@ -193,6 +209,8 @@
   <!-- URL again for its API object; the browser caches the module so it is fetched once. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
   <!-- type=module lets app.js use top-level await and ES imports. Modules run deferred. -->
+  <!-- Order matters: the DOM above must exist before app.js runs. Module scripts are deferred, so this is safe even though
+       the tag sits at the end of the body. -->
   <script src="/static/js/app.js" type="module"></script>
 </body>
 
